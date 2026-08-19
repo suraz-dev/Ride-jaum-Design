@@ -30,7 +30,7 @@ should be able to read the same document and know what the thing must do.
 ## 🗂️ Repository structure
 
 ```
-RideJaunm-Design/
+Ride-jaum-Design/
 ├── README.md                          ← you are here
 ├── LICENSE
 ├── .gitignore

@@ -4,7 +4,7 @@ Use Codex one bounded task at a time. That is the safest way to keep the app, ge
 
 Your design repository is:
 
-[RideJaunm-Design](/Users/surajshrestha/Documents/Ride%20Jaum/RideJaunm-Design)
+[Ride-jaum-Design](/Users/surajshrestha/Documents/Ride%20Jaum/Ride-jaum-Design)
 
 Do not build the app directly inside it. Create/open a sibling mobile-app folder, for example:
 
@@ -18,12 +18,12 @@ Paste this before the master prompt:
 
 ```text
 The RideJaunm design/system source is at:
-/Users/surajshrestha/Documents/Ride Jaum/RideJaunm-Design
+/Users/surajshrestha/Documents/Ride Jaum/Ride-jaum-Design
 
 Read its README, docs, implementation manifests, prompts, and token files before editing this mobile-app workspace.
 ```
 
-Then paste the [React Native master prompt](/Users/surajshrestha/Documents/Ride%20Jaum/RideJaunm-Design/prompts/01-master-prompt.md).
+Then paste the [React Native master prompt](/Users/surajshrestha/Documents/Ride%20Jaum/Ride-jaum-Design/prompts/01-master-prompt.md).
 
 3. Let Codex perform only `R0` first.
 
@@ -44,7 +44,7 @@ If you are not ready to choose, tell Codex: “Document this as an ADR and use a
 
 5. Build the mobile app in manifest order.
 
-Use the [mobile build manifest](/Users/surajshrestha/Documents/Ride%20Jaum/RideJaunm-Design/implementation/task-manifest.md). For each new Codex task, paste the [universal follow-up prompt](/Users/surajshrestha/Documents/Ride%20Jaum/RideJaunm-Design/prompts/02-follow-up-meta-prompts.md) and replace `[TASK ID — NAME]`.
+Use the [mobile build manifest](/Users/surajshrestha/Documents/Ride%20Jaum/Ride-jaum-Design/implementation/task-manifest.md). For each new Codex task, paste the [universal follow-up prompt](/Users/surajshrestha/Documents/Ride%20Jaum/Ride-jaum-Design/prompts/02-follow-up-meta-prompts.md) and replace `[TASK ID — NAME]`.
 
 Recommended sequence:
 
@@ -59,9 +59,9 @@ Recommended sequence:
 
 6. Build the backend/system in parallel after foundations.
 
-In a separate Codex task, paste the [system-design master prompt](/Users/surajshrestha/Documents/Ride%20Jaum/RideJaunm-Design/prompts/03-system-design-master-prompt.md).
+In a separate Codex task, paste the [system-design master prompt](/Users/surajshrestha/Documents/Ride%20Jaum/Ride-jaum-Design/prompts/03-system-design-master-prompt.md).
 
-Start only with `S0`, then work through the [system build manifest](/Users/surajshrestha/Documents/Ride%20Jaum/RideJaunm-Design/implementation/system-design-task-manifest.md).
+Start only with `S0`, then work through the [system build manifest](/Users/surajshrestha/Documents/Ride%20Jaum/Ride-jaum-Design/implementation/system-design-task-manifest.md).
 
 The key alignment points are:
 
