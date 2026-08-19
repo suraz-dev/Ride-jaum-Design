@@ -1,0 +1,209 @@
+{
+  "$schema": "https://tr.designtokens.org/format/",
+  "$description": "RideJaunm design tokens — Himalayan-Tactical Tech. W3C DTCG format. Consumed by Figma (Tokens Studio) and the mobile client.",
+  "color": {
+    "$type": "color",
+    "volt": {
+      "50":  { "$value": "#F3FFE0" },
+      "100": { "$value": "#E4FFB8" },
+      "200": { "$value": "#D2FF85" },
+      "300": { "$value": "#C2FF4D" },
+      "400": { "$value": "#B4FF39", "$description": "PRIMARY ACCENT — movement, energy, interactive, 'you'" },
+      "500": { "$value": "#9FE81F" },
+      "600": { "$value": "#7FC40E" },
+      "700": { "$value": "#5E930A" },
+      "800": { "$value": "#446B0B" },
+      "900": { "$value": "#2E4A0A" }
+    },
+    "cyan": {
+      "50":  { "$value": "#E6FBFF" },
+      "100": { "$value": "#C0F4FF" },
+      "200": { "$value": "#8AEAFF" },
+      "300": { "$value": "#4FDBFB" },
+      "400": { "$value": "#22C9EE", "$description": "SECONDARY — information, GPS, terrain, links" },
+      "500": { "$value": "#0FA8CC" },
+      "600": { "$value": "#0B87A6" },
+      "700": { "$value": "#0A6A83" },
+      "800": { "$value": "#0A5163" },
+      "900": { "$value": "#083C4A" }
+    },
+    "graphite": {
+      "50":  { "$value": "#E9EFED", "$description": "Primary text on dark (not pure white)" },
+      "100": { "$value": "#CFDAD6" },
+      "200": { "$value": "#A6B6B1", "$description": "Secondary text on dark" },
+      "300": { "$value": "#7E918C", "$description": "Tertiary text on dark, min 13px" },
+      "400": { "$value": "#5A6D68" },
+      "500": { "$value": "#3C4B47" },
+      "600": { "$value": "#2C3835" },
+      "700": { "$value": "#202A27" },
+      "800": { "$value": "#171F1D" },
+      "850": { "$value": "#111716" },
+      "900": { "$value": "#0B0F0E", "$description": "App background, dark theme, elevation 0" },
+      "950": { "$value": "#050807", "$description": "Blackout mode base" }
+    },
+    "snow": {
+      "0":   { "$value": "#FFFFFF", "$description": "Elevated card fills only, never full-screen" },
+      "50":  { "$value": "#F7F9F8", "$description": "App background, light / Day-Glare theme" },
+      "100": { "$value": "#EEF2F1" },
+      "200": { "$value": "#E1E7E5" },
+      "300": { "$value": "#CBD4D1" },
+      "400": { "$value": "#A3B0AC" },
+      "500": { "$value": "#7A8783" },
+      "600": { "$value": "#54615D", "$description": "Secondary text on light" },
+      "700": { "$value": "#39443F" },
+      "800": { "$value": "#232C29" },
+      "900": { "$value": "#0F1513", "$description": "Primary text on light" }
+    },
+    "semantic": {
+      "success":   { "$value": "#2FD07A" },
+      "successOn": { "$value": "#128A4C", "$description": "Light-theme variant" },
+      "warning":   { "$value": "#FFB020" },
+      "warningOn": { "$value": "#B26A00" },
+      "info":      { "$value": "{color.cyan.400}" },
+      "danger":    { "$value": "#F2603C", "$description": "Non-emergency destructive. NOT the SOS red." },
+      "dangerOn":  { "$value": "#C23B1B" }
+    },
+    "sos": {
+      "$description": "RESERVED. Emergency only. Identical in every theme mode. Never used decoratively.",
+      "400": { "$value": "#FF4D64", "$description": "Glow / pulse ring" },
+      "500": { "$value": "#FF1F3D", "$description": "SOS RED — the trigger and armed state" },
+      "600": { "$value": "#D80D28", "$description": "Pressed" },
+      "900": { "$value": "#3D0209", "$description": "Full-bleed emergency wash" }
+    },
+    "route": {
+      "straight":   { "$value": "{color.cyan.400}", "$description": "Solid 6px + 2px casing + arrow icon" },
+      "curvy":      { "$value": "{color.volt.400}", "$description": "Solid 7px + glow + single-wave icon" },
+      "supercurvy": { "$value": "#C25CFF", "$description": "Animated dash 8px + glow + double-wave icon" },
+      "alt":        { "$value": "#5A6D68" },
+      "done":       { "$value": "#3C4B47" },
+      "detour":     { "$value": "#FFB020" },
+      "hazard":     { "$value": "#F2603C" },
+      "lost":       { "$value": "#7E918C" }
+    },
+    "peer": {
+      "$description": "Prayer-flag spectrum for group member coding. Deuteranopia-verified.",
+      "1": { "$value": "#3D8BFF", "$description": "Lungta Blue" },
+      "2": { "$value": "#E9EFED", "$description": "Lungta White" },
+      "3": { "$value": "#FF7A5C", "$description": "Lungta Red shifted to coral — true red is SOS-reserved" },
+      "4": { "$value": "#2FD07A", "$description": "Lungta Green" },
+      "5": { "$value": "#FFD028", "$description": "Lungta Yellow" },
+      "6": { "$value": "#8A6BFF", "$description": "Newar Indigo" }
+    },
+    "map": {
+      "bgNight":      { "$value": "#0A0E0D" },
+      "bgDay":        { "$value": "#EDF1EF" },
+      "waterNight":   { "$value": "#0E2A33" },
+      "waterDay":     { "$value": "#C9E4EC" },
+      "contour":      { "$value": "#1E2C28" },
+      "contourIndex": { "$value": "#2C4038" },
+      "roadHwy":      { "$value": "#4A5A55" },
+      "roadMinor":    { "$value": "#33403C" },
+      "roadUnpaved":  { "$value": "#5A4A33", "$description": "Always rendered dashed" }
+    }
+  },
+  "font": {
+    "$type": "fontFamily",
+    "display": { "$value": ["Space Grotesk", "Inter", "system-ui", "sans-serif"] },
+    "body":    { "$value": ["Inter", "Mukta", "system-ui", "sans-serif"] },
+    "np":      { "$value": ["Mukta", "Noto Sans Devanagari", "Inter", "sans-serif"] },
+    "mono":    { "$value": ["JetBrains Mono", "ui-monospace", "monospace"] }
+  },
+  "typography": {
+    "$type": "typography",
+    "displayHero": { "$value": { "fontFamily": "{font.display}", "fontWeight": 700, "fontSize": "48px", "lineHeight": "52px", "letterSpacing": "-0.02em" } },
+    "display1":    { "$value": { "fontFamily": "{font.display}", "fontWeight": 700, "fontSize": "40px", "lineHeight": "46px", "letterSpacing": "-0.02em" } },
+    "h1":          { "$value": { "fontFamily": "{font.display}", "fontWeight": 700, "fontSize": "32px", "lineHeight": "38px", "letterSpacing": "-0.015em" } },
+    "h2":          { "$value": { "fontFamily": "{font.display}", "fontWeight": 600, "fontSize": "24px", "lineHeight": "30px", "letterSpacing": "-0.01em" } },
+    "h3":          { "$value": { "fontFamily": "{font.display}", "fontWeight": 600, "fontSize": "20px", "lineHeight": "26px", "letterSpacing": "-0.005em" } },
+    "h4":          { "$value": { "fontFamily": "{font.body}", "fontWeight": 600, "fontSize": "17px", "lineHeight": "24px", "letterSpacing": "0" } },
+    "bodyLarge":   { "$value": { "fontFamily": "{font.body}", "fontWeight": 400, "fontSize": "17px", "lineHeight": "26px", "letterSpacing": "0" } },
+    "bodyMedium":  { "$value": { "fontFamily": "{font.body}", "fontWeight": 400, "fontSize": "15px", "lineHeight": "22px", "letterSpacing": "0" } },
+    "bodySmall":   { "$value": { "fontFamily": "{font.body}", "fontWeight": 400, "fontSize": "13px", "lineHeight": "20px", "letterSpacing": "0.005em" } },
+    "caption":     { "$value": { "fontFamily": "{font.body}", "fontWeight": 500, "fontSize": "12px", "lineHeight": "16px", "letterSpacing": "0.02em" } },
+    "captionCaps": { "$value": { "fontFamily": "{font.body}", "fontWeight": 600, "fontSize": "12px", "lineHeight": "16px", "letterSpacing": "0.08em", "textCase": "uppercase" } },
+    "micro":       { "$value": { "fontFamily": "{font.body}", "fontWeight": 500, "fontSize": "11px", "lineHeight": "14px", "letterSpacing": "0.03em" } },
+    "microCaps":   { "$value": { "fontFamily": "{font.body}", "fontWeight": 700, "fontSize": "11px", "lineHeight": "14px", "letterSpacing": "0.10em", "textCase": "uppercase" } },
+    "legal":       { "$value": { "fontFamily": "{font.body}", "fontWeight": 400, "fontSize": "10px", "lineHeight": "14px", "letterSpacing": "0.02em" } },
+    "telemetryXXL":   { "$value": { "fontFamily": "{font.display}", "fontWeight": 700, "fontSize": "64px", "lineHeight": "64px", "letterSpacing": "-0.03em", "fontVariantNumeric": "tabular-nums" } },
+    "telemetryXL":    { "$value": { "fontFamily": "{font.display}", "fontWeight": 700, "fontSize": "44px", "lineHeight": "46px", "letterSpacing": "-0.025em", "fontVariantNumeric": "tabular-nums" } },
+    "telemetryLarge": { "$value": { "fontFamily": "{font.display}", "fontWeight": 700, "fontSize": "32px", "lineHeight": "34px", "letterSpacing": "-0.02em", "fontVariantNumeric": "tabular-nums" } },
+    "telemetryMedium":{ "$value": { "fontFamily": "{font.display}", "fontWeight": 600, "fontSize": "24px", "lineHeight": "28px", "letterSpacing": "-0.01em", "fontVariantNumeric": "tabular-nums" } },
+    "telemetrySmall": { "$value": { "fontFamily": "{font.body}", "fontWeight": 600, "fontSize": "17px", "lineHeight": "22px", "letterSpacing": "0", "fontVariantNumeric": "tabular-nums" } },
+    "telemetryUnit":  { "$value": { "fontFamily": "{font.body}", "fontWeight": 700, "fontSize": "12px", "lineHeight": "14px", "letterSpacing": "0.10em", "textCase": "uppercase" } },
+    "telemetryLabel": { "$value": { "fontFamily": "{font.body}", "fontWeight": 600, "fontSize": "11px", "lineHeight": "14px", "letterSpacing": "0.10em", "textCase": "uppercase" } }
+  },
+  "spacing": {
+    "$type": "dimension",
+    "0":  { "$value": "0px" },
+    "1":  { "$value": "2px" },
+    "2":  { "$value": "4px" },
+    "3":  { "$value": "8px" },
+    "4":  { "$value": "12px" },
+    "5":  { "$value": "16px" },
+    "6":  { "$value": "20px" },
+    "7":  { "$value": "24px" },
+    "8":  { "$value": "32px" },
+    "9":  { "$value": "40px" },
+    "10": { "$value": "48px" },
+    "11": { "$value": "64px" },
+    "12": { "$value": "80px" },
+    "13": { "$value": "96px" }
+  },
+  "radius": {
+    "$type": "dimension",
+    "xs":   { "$value": "4px" },
+    "sm":   { "$value": "8px" },
+    "md":   { "$value": "12px" },
+    "lg":   { "$value": "16px" },
+    "xl":   { "$value": "20px" },
+    "2xl":  { "$value": "28px" },
+    "full": { "$value": "999px" }
+  },
+  "size": {
+    "$type": "dimension",
+    "$description": "Interactive target sizes. Glove-first.",
+    "targetMin":     { "$value": "48px" },
+    "targetInRide":  { "$value": "56px" },
+    "targetSOS":     { "$value": "88px" },
+    "targetPTT":     { "$value": "72px" },
+    "iconGrid":      { "$value": "24px" },
+    "iconHUD":       { "$value": "32px" },
+    "navBarHeight":  { "$value": "64px" },
+    "appBarHeight":  { "$value": "56px" },
+    "sheetPeek":     { "$value": "120px" }
+  },
+  "duration": {
+    "$type": "duration",
+    "instant":   { "$value": "100ms" },
+    "fast":      { "$value": "200ms" },
+    "base":      { "$value": "320ms" },
+    "slow":      { "$value": "600ms" },
+    "cinematic": { "$value": "1200ms" },
+    "sosHold":   { "$value": "3000ms", "$description": "SOS long-press arming duration" },
+    "sosCancel": { "$value": "10000ms", "$description": "Post-arm cancel window" }
+  },
+  "easing": {
+    "$type": "cubicBezier",
+    "standard":    { "$value": [0.4, 0, 0.2, 1] },
+    "outExpo":     { "$value": [0.16, 1, 0.3, 1] },
+    "inOutBack":   { "$value": [0.68, -0.4, 0.32, 1.4] }
+  },
+  "effect": {
+    "elevation1": { "$type": "shadow", "$value": { "color": "#00000066", "offsetX": "0px", "offsetY": "1px", "blur": "2px", "spread": "0px" } },
+    "elevation2": { "$type": "shadow", "$value": { "color": "#00000073", "offsetX": "0px", "offsetY": "4px", "blur": "12px", "spread": "0px" } },
+    "elevation3": { "$type": "shadow", "$value": { "color": "#00000080", "offsetX": "0px", "offsetY": "8px", "blur": "24px", "spread": "0px" } },
+    "elevation4": { "$type": "shadow", "$value": { "color": "#0000008C", "offsetX": "0px", "offsetY": "-12px", "blur": "40px", "spread": "0px" } },
+    "glowVolt":   { "$type": "shadow", "$value": { "color": "#B4FF3952", "offsetX": "0px", "offsetY": "0px", "blur": "24px", "spread": "0px" } },
+    "glowSOS":    { "$type": "shadow", "$value": { "color": "#FF1F3D8C", "offsetX": "0px", "offsetY": "0px", "blur": "32px", "spread": "0px" } }
+  },
+  "glass": {
+    "map":       { "$value": { "fill": "rgba(11,15,14,0.62)", "blur": "24px", "border": "1px solid rgba(255,255,255,0.08)" } },
+    "mapStrong": { "$value": { "fill": "rgba(11,15,14,0.80)", "blur": "32px", "border": "1px solid rgba(255,255,255,0.08)" }, "$description": "Auto-applied when underlying map luminance > 0.45" }
+  },
+  "contrastFloor": {
+    "$description": "Minimum WCAG contrast ratios enforced in the ship gate.",
+    "body":      { "$value": 4.5 },
+    "telemetry": { "$value": 7.0 },
+    "sos":       { "$value": 10.0 }
+  }
+}
