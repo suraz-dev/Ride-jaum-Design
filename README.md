@@ -19,7 +19,7 @@ This is the **design-operations repository** for RideJaunm — the single source
 brand, design system, information architecture, user flows, wireframe blueprints, hi-fi
 specifications and Figma project strategy.
 
-Figma holds the pixels. **This repo holds the decisions.**
+Figma holds the pixels. **This repo holds the decisions and Codex implementation contract.**
 
 Every specification here is written to be *transcribable* — a designer should be able to open a
 document and build the corresponding Figma page without inventing anything, and an engineer
