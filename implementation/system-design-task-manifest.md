@@ -2,8 +2,8 @@
 
 | ID | Bounded task | Depends on | Definition of done |
 |---|---|---|---|
-| S0 | Create ADR template, risk register, threat model and environment model | — | unresolved provider/policy questions are explicit |
-| S1 | Define versioned domain/API/event schemas and error envelope | S0 | contract tests and idempotency rules exist |
+| S0 | Create ADR template, risk register, threat model, environment model, and readiness record | — | ADRs accepted; unresolved provider/policy questions explicit; ownership/evidence gates tracked in `docs/26-s0-architecture-readiness.md` |
+| S1 | Define versioned domain/API/event schemas and error envelope | S0 (architecture assumptions may proceed while external S0 gates remain tracked) | contract tests and idempotency rules exist; shared baseline: `docs/27-s1-api-event-contract-foundations.md`; endpoint/schema catalogue: `docs/28-s1-domain-api-schema-catalogue.md`; machine-readable draft: `contracts/openapi/v1.yaml`; event catalogue: `docs/29-s1-event-schema-catalogue.md` |
 | S2 | Establish operational data store, geospatial schema, migrations, backup policy | S1 | migration/restore test and provenance fields |
 | S3 | Build identity/device/consent/emergency-profile boundaries | S1,S2 | resource policy tests and audit records |
 | S4 | Implement core trip/group/route persistence and outbox | S1,S2 | transactional writes emit idempotent events |

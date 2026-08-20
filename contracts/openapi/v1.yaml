@@ -1,0 +1,263 @@
+openapi: 3.1.0
+info:
+  title: RideJaunm API
+  version: 1.0.0-draft
+  description: |
+    Contract foundation for the Nepal-first RideJaunm pilot. All protected endpoints
+    enforce server-side resource authorization and a resolved country capability profile.
+servers:
+  - url: https://api.example.invalid/v1
+security:
+  - bearerAuth: []
+paths:
+  /me:
+    get:
+      operationId: getCurrentUser
+      responses:
+        '200': { $ref: '#/components/responses/CurrentUser' }
+        '401': { $ref: '#/components/responses/ApiError' }
+  /me/consents:
+    get:
+      operationId: listConsentReceipts
+      responses:
+        '200': { $ref: '#/components/responses/ConsentList' }
+    post:
+      operationId: recordConsentDecision
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ConsentDecisionCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ConsentReceipt' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /trips:
+    post:
+      operationId: createTrip
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateTripCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/Trip' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /trips/{tripId}:
+    parameters: [{ $ref: '#/components/parameters/TripId' }]
+    get:
+      operationId: getTrip
+      responses:
+        '200': { $ref: '#/components/responses/Trip' }
+        '404': { $ref: '#/components/responses/ApiError' }
+    put:
+      operationId: updateTrip
+      parameters:
+        - { $ref: '#/components/parameters/IfMatch' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateTripCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/Trip' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /routes:candidates:
+    post:
+      operationId: calculateRouteCandidates
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RouteCandidatesCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/RouteCandidates' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
+  /rides/{rideId}/presence:
+    parameters: [{ $ref: '#/components/parameters/RideId' }]
+    get:
+      operationId: listRidePresence
+      responses:
+        '200': { $ref: '#/components/responses/PresenceList' }
+    post:
+      operationId: upsertRidePresence
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PresenceCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/Presence' }
+        '403': { $ref: '#/components/responses/ApiError' }
+  /offline-packs:
+    get:
+      operationId: listOfflinePacks
+      responses:
+        '200': { $ref: '#/components/responses/OfflinePackList' }
+  /offline-packs/{packId}/download-intents:
+    parameters: [{ $ref: '#/components/parameters/PackId' }]
+    post:
+      operationId: createPackDownloadIntent
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '201': { $ref: '#/components/responses/DownloadIntent' }
+        '403': { $ref: '#/components/responses/ApiError' }
+  /safety-incidents:
+    post:
+      operationId: activateSafetyIncident
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ActivateSafetyIncidentCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/SafetyIncident' }
+        '422': { $ref: '#/components/responses/ApiError' }
+  /safety-incidents/{incidentId}:
+    parameters: [{ $ref: '#/components/parameters/IncidentId' }]
+    get:
+      operationId: getSafetyIncident
+      responses:
+        '200': { $ref: '#/components/responses/SafetyIncident' }
+        '404': { $ref: '#/components/responses/ApiError' }
+  /configuration/effective:
+    get:
+      operationId: getEffectiveConfiguration
+      responses:
+        '200': { $ref: '#/components/responses/EffectiveConfiguration' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 16, maxLength: 256 } }
+    IfMatch: { name: If-Match, in: header, required: true, schema: { type: string } }
+    TripId: { name: tripId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    RideId: { name: rideId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    PackId: { name: packId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    IncidentId: { name: incidentId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+  schemas:
+    OpaqueId: { type: string, minLength: 8, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }
+    UtcInstant: { type: string, format: date-time, description: UTC RFC 3339 instant }
+    GeoPoint:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        accuracyMeters: { type: number, minimum: 0 }
+    CountryContext:
+      type: object
+      required: [code, configVersion]
+      properties:
+        code: { type: string, pattern: '^[A-Z]{2}$' }
+        configVersion: { type: string }
+    Meta:
+      type: object
+      required: [requestId, apiVersion, serverTime]
+      properties:
+        requestId: { type: string }
+        apiVersion: { const: v1 }
+        serverTime: { $ref: '#/components/schemas/UtcInstant' }
+        countryProfile: { $ref: '#/components/schemas/CountryContext' }
+    ErrorBody:
+      type: object
+      required: [code, message, requestId, retryable]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string }
+        retryable: { type: boolean }
+        details: { type: array, items: { type: object, properties: { field: { type: string }, code: { type: string }, message: { type: string } } } }
+    Trip:
+      type: object
+      required: [id, state, country, version]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        state: { enum: [draft, planned, active, completed, cancelled] }
+        title: { type: string, maxLength: 120 }
+        origin: { $ref: '#/components/schemas/GeoPoint' }
+        destination: { $ref: '#/components/schemas/GeoPoint' }
+        selectedRouteCandidateId: { $ref: '#/components/schemas/OpaqueId' }
+        country: { $ref: '#/components/schemas/CountryContext' }
+        version: { type: string }
+    CreateTripCommand:
+      type: object
+      required: [origin, destination]
+      properties:
+        title: { type: string, maxLength: 120 }
+        origin: { $ref: '#/components/schemas/GeoPoint' }
+        destination: { $ref: '#/components/schemas/GeoPoint' }
+        plannedStartAt: { $ref: '#/components/schemas/UtcInstant' }
+    UpdateTripCommand:
+      type: object
+      properties:
+        title: { type: string, maxLength: 120 }
+        plannedStartAt: { $ref: '#/components/schemas/UtcInstant' }
+    RouteCandidate:
+      type: object
+      required: [id, profile, state, provenance]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        profile: { enum: [straight, curvy, supercurvy] }
+        state: { enum: [available, restricted, unavailable] }
+        distanceMeters: { type: integer, minimum: 0 }
+        durationSeconds: { type: integer, minimum: 0 }
+        encodedPolyline: { type: string }
+        provenance: { type: object, required: [graphVersion, coverageVersion, generatedAt], properties: { graphVersion: { type: string }, coverageVersion: { type: string }, generatedAt: { $ref: '#/components/schemas/UtcInstant' } } }
+    RouteCandidatesCommand:
+      type: object
+      required: [origin, destination]
+      properties:
+        origin: { $ref: '#/components/schemas/GeoPoint' }
+        destination: { $ref: '#/components/schemas/GeoPoint' }
+        waypointIds: { type: array, items: { $ref: '#/components/schemas/OpaqueId' }, maxItems: 12 }
+    PresenceCommand:
+      type: object
+      required: [state]
+      properties:
+        state: { enum: [active, stopped] }
+        location: { $ref: '#/components/schemas/GeoPoint' }
+        headingDegrees: { type: number, minimum: 0, maximum: 360 }
+    Presence:
+      type: object
+      required: [rideId, userId, state, observedAt, expiresAt, evidence]
+      properties:
+        rideId: { $ref: '#/components/schemas/OpaqueId' }
+        userId: { $ref: '#/components/schemas/OpaqueId' }
+        state: { enum: [active, stale, stopped] }
+        observedAt: { $ref: '#/components/schemas/UtcInstant' }
+        expiresAt: { $ref: '#/components/schemas/UtcInstant' }
+        location: { $ref: '#/components/schemas/GeoPoint' }
+        evidence: { enum: [device_reported, server_relayed] }
+    ConsentDecisionCommand:
+      type: object
+      required: [purpose, decision, policyVersion]
+      properties:
+        purpose: { enum: [location_sharing, safety_profile, analytics, marketing] }
+        decision: { enum: [grant, revoke] }
+        policyVersion: { type: string }
+    ActivateSafetyIncidentCommand:
+      type: object
+      required: [activationMethod]
+      properties:
+        activationMethod: { enum: [hold_to_activate, accessibility_equivalent] }
+        locationObservation: { $ref: '#/components/schemas/GeoPoint' }
+    SafetyIncident:
+      type: object
+      required: [id, state, activatedAt, latestEvidence, country, version]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        state: { enum: [activating, active, stand_down_requested, resolved, cancelled] }
+        activatedAt: { $ref: '#/components/schemas/UtcInstant' }
+        latestEvidence: { enum: [local_recorded, server_accepted, provider_accepted, delivery_unknown, recipient_acknowledged, failed] }
+        country: { $ref: '#/components/schemas/CountryContext' }
+        version: { type: string }
+  responses:
+    ApiError: { description: Safe API error, content: { application/json: { schema: { type: object, required: [error], properties: { error: { $ref: '#/components/schemas/ErrorBody' } } } } } }
+    CurrentUser: { description: Current user, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: object }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    ConsentList: { description: Consent receipts, content: { application/json: { schema: { type: object } } } }
+    ConsentReceipt: { description: Consent receipt, content: { application/json: { schema: { type: object } } } }
+    Trip: { description: Trip, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/Trip' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    RouteCandidates: { description: Route candidates, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/RouteCandidate' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    Presence: { description: Presence, content: { application/json: { schema: { type: object } } } }
+    PresenceList: { description: Presence list, content: { application/json: { schema: { type: object } } } }
+    OfflinePackList: { description: Eligible offline packs, content: { application/json: { schema: { type: object } } } }
+    DownloadIntent: { description: Scoped download intent, content: { application/json: { schema: { type: object } } } }
+    SafetyIncident: { description: Safety incident, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/SafetyIncident' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    EffectiveConfiguration: { description: Effective safe configuration, content: { application/json: { schema: { type: object } } } }
