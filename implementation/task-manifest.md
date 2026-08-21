@@ -10,7 +10,7 @@ Complete these bounded Codex tasks in order. A task is not complete until tests 
 | R3 | Action family: buttons, FAB, SOS, PTT | R2 | target/hold/cancel/loading tests |
 | R4 | Forms/controls and destination-search contracts | R2 | error/offline/keyboard/Devanagari cases |
 | R5 | Navigation shell, sheets, banners, deep links | R3,R4 | 5 tabs, priority banner, return-to-ride |
-| R6 | Domain models, fixtures, persistence, connection/freshness states | R0 | **Remediation required before acceptance** — see `docs/32-mobile-qa-review-r6.md`; implementation brief: `implementation/briefs/R6-domain-fixtures-persistence.md` |
+| R6 | Domain models, fixtures, persistence, connection/freshness states | R0 | **Remediation required before acceptance** — initial review: `docs/32-mobile-qa-review-r6.md`; PR #1 re-review: `docs/33-mobile-qa-r6-pr1-rereview.md`; implementation brief: `implementation/briefs/R6-domain-fixtures-persistence.md` |
 | R7 | `MapAdapter` and fixture-backed `MapSurface` | R1,R6 | attribution, camera, fallback rendering |
 | R8 | Route/marker layers, map controls and map modes | R7 | all route semantics/state machines |
 | R9 | Map Home and Telemetry HUD | R3,R5,R8 | acquire/stale/lost GPS and Ride Mode |
