@@ -18,8 +18,8 @@ Complete these bounded Codex tasks in order. A task is not complete until tests 
 | R11 | Fixture trip readiness and squad planning handoff | R6,R10 | **Accepted at mobile PR #6 merge `f3ed47a`** — truthful local roster/readiness preview; implementation brief: `implementation/briefs/R11-fixture-trip-readiness-squad-handoff.md` |
 | R12 | Fixture offline region browser and lifecycle UI | R6,R8 | **Accepted at mobile PR #8 merge `af5f1e9`** — cache-only lifecycle preview with truthful fixture copy; implementation brief: `implementation/briefs/R12-fixture-offline-region-manager.md` |
 | R13 | Fixture squad, community feed, and chat presentation | R2,R5,R6,R8 | **Accepted at mobile PR #9 merge `fc68859`** — fixture-only cached squad/community/chat surfaces; implementation brief: `implementation/briefs/R13-fixture-squad-community-chat.md` |
-| R14 | Fixture profile, garage, history, settings, and locale preview | R5,R6 | EN/NE/HI + AD/BS tests; implementation brief: `implementation/briefs/R14-fixture-profile-settings-locale.md` |
-| R15 | SOS console UI and safety capability gate | R3,R5,R6 | cannot indicate delivery without evidence |
+| R14 | Fixture profile, garage, history, settings, and locale preview | R5,R6 | **Accepted at mobile PR #10 merge `e4839c7`** — EN/NE/HI + AD/BS fixture preview; implementation brief: `implementation/briefs/R14-fixture-profile-settings-locale.md` |
+| R15 | SOS console UI and safety capability gate | R3,R5,R6 | fixture-only state matrix, deliberate activation/cancel/stand-down, and no delivery claim; implementation brief: `implementation/briefs/R15-fixture-sos-console-safety-gate.md` |
 | R16 | Native safety services behind feature flags | R15 | per-capability physical-device proof |
 | R17 | Motion, haptics, analytics, performance fallbacks | R9–R16 | Reduce Motion + low-tier fallback tests |
 | R18 | Release-quality audit | R9–R17 | full state/a11y/glare/offline/device audit |
