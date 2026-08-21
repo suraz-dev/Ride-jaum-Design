@@ -12,8 +12,8 @@ Complete these bounded Codex tasks in order. A task is not complete until tests 
 | R5 | Navigation shell, sheets, banners, deep links | R3,R4 | 5 tabs, priority banner, return-to-ride |
 | R6 | Domain models, fixtures, persistence, connection/freshness states | R0 | **Accepted at mobile PR #1 head `9eef2ac`** — acceptance: `docs/34-mobile-qa-r6-acceptance.md`; implementation brief: `implementation/briefs/R6-domain-fixtures-persistence.md` |
 | R7 | `MapAdapter` and fixture-backed `MapSurface` | R1,R6 | **Accepted at mobile PR #2 merge `09782fb`** — attribution, camera, fallback rendering; implementation brief: `implementation/briefs/R7-map-adapter-surface.md` |
-| R8 | Route/marker layers, map controls and map modes | R7 | all route semantics/state machines; implementation brief: `implementation/briefs/R8-route-marker-layers-controls.md` |
-| R9 | Map Home and Telemetry HUD | R3,R5,R8 | acquire/stale/lost GPS and Ride Mode |
+| R8 | Route/marker layers, map controls and map modes | R7 | **Accepted at mobile PR #3 merge `ef9a1c7`** — fixture overlays, controls, layers, and explicit Terai restriction; implementation brief: `implementation/briefs/R8-route-marker-layers-controls.md` |
+| R9 | Map Home and Telemetry HUD | R3,R5,R8 | acquire/stale/lost GPS and Ride Mode; implementation brief: `implementation/briefs/R9-map-home-telemetry-hud.md` |
 | R10 | Trip Planner and route comparison | R4,R8 | solo/group, disabled Supercurvy, hazards, waypoints |
 | R11 | Group setup, invites, saved trips, readiness | R6,R10 | role/tile/permit/fuel fixtures |
 | R12 | Offline region browser/manager/progress UI | R6,R8 | queued/downloading/partial/stale/fail visible |
