@@ -17,8 +17,8 @@ Complete these bounded Codex tasks in order. A task is not complete until tests 
 | R10 | Trip Planner and route comparison | R4,R8 | **Accepted at mobile PR #5 merge `bac396a`** — fixture planner, truth metadata, map preview, and offline-catalogue state; implementation brief: `implementation/briefs/R10-trip-planner-route-comparison.md` |
 | R11 | Fixture trip readiness and squad planning handoff | R6,R10 | **Accepted at mobile PR #6 merge `f3ed47a`** — truthful local roster/readiness preview; implementation brief: `implementation/briefs/R11-fixture-trip-readiness-squad-handoff.md` |
 | R12 | Fixture offline region browser and lifecycle UI | R6,R8 | **Accepted at mobile PR #8 merge `af5f1e9`** — cache-only lifecycle preview with truthful fixture copy; implementation brief: `implementation/briefs/R12-fixture-offline-region-manager.md` |
-| R13 | Fixture squad, community feed, and chat presentation | R2,R5,R6,R8 | cached/read-only/queued/low-data cases; implementation brief: `implementation/briefs/R13-fixture-squad-community-chat.md` |
-| R14 | Profile, garage, history, settings, languages | R5,R6 | EN/NE/HI + AD/BS tests |
+| R13 | Fixture squad, community feed, and chat presentation | R2,R5,R6,R8 | **Accepted at mobile PR #9 merge `fc68859`** — fixture-only cached squad/community/chat surfaces; implementation brief: `implementation/briefs/R13-fixture-squad-community-chat.md` |
+| R14 | Fixture profile, garage, history, settings, and locale preview | R5,R6 | EN/NE/HI + AD/BS tests; implementation brief: `implementation/briefs/R14-fixture-profile-settings-locale.md` |
 | R15 | SOS console UI and safety capability gate | R3,R5,R6 | cannot indicate delivery without evidence |
 | R16 | Native safety services behind feature flags | R15 | per-capability physical-device proof |
 | R17 | Motion, haptics, analytics, performance fallbacks | R9–R16 | Reduce Motion + low-tier fallback tests |
