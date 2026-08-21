@@ -25,6 +25,10 @@ Every specification here is written to be *transcribable* — a designer should 
 document and build the corresponding Figma page without inventing anything, and an engineer
 should be able to read the same document and know what the thing must do.
 
+## 🧭 Delivery model
+
+`Ride-jaum-Design` is the product, design, architecture, planning, and QA control plane. The active React Native implementation lives in the sibling [RideJaunm-Mobile](https://github.com/suraz-dev/RideJaunm-Mobile) repository, where Google Antigravity implements approved tasks. Codex leads task planning, system/design decisions, acceptance criteria, reviews, and release gates from this repository. The detailed [delivery operating model](codex/codex.md) defines the handoff and QA loop.
+
 ---
 
 ## 🗂️ Repository structure

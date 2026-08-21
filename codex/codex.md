@@ -1,4 +1,27 @@
-Use Codex one bounded task at a time. That is the safest way to keep the app, geospatial data, and SOS system consistent.
+# RideJaunm Delivery Operating Model
+
+> **Lead workspace:** this repository (`Ride-jaum-Design`) is where product, design, architecture, scope, acceptance criteria, QA evidence, and release decisions are managed.
+> **Implementation workspace:** the sibling repository `RideJaunm-Mobile` is the active React Native application. Google Antigravity is the primary implementation agent there.
+
+The lead (Codex) does not make speculative application changes in the mobile repository. It plans a bounded R/S task here, supplies implementation-ready acceptance criteria and constraints, then reviews Antigravity's completed work against the contracts before the next task is released.
+
+## Responsibilities
+
+| Role | Accountabilities |
+|---|---|
+| Product / CTO / PM / System Architecture lead (Codex in this repo) | roadmap, UX/system decisions, ADRs, task decomposition, dependencies, safety/privacy boundaries, acceptance criteria, release gates, QA review |
+| Antigravity (mobile repo) | implement the approved bounded mobile task, add/update tests, run simulator/device checks, report implementation evidence and deviations |
+| Project owner | approve scope, provider/cost/legal choices, production/safety claims, named owners, and release decisions |
+
+## Handoff and QA loop
+
+1. Lead selects the next dependency-ready task from the manifest and writes its implementation brief here.
+2. Antigravity implements only that approved task in `RideJaunm-Mobile`, preserving the design/system contracts.
+3. Antigravity reports changed files, tests, simulator/device evidence, known gaps, and decisions it could not make.
+4. Lead performs a read-only QA review against design tokens, UX flow, API/system contracts, accessibility, offline behavior, privacy, and SOS evidence wording.
+5. The lead either accepts the task, records remediation, or blocks the next dependent task. No safety capability is represented as real until its evidence gate is passed.
+
+Use one bounded task at a time. That is the safest way to keep the app, geospatial data, and SOS system consistent.
 
 1. Keep the design repo as the source of truth.
 
