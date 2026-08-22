@@ -21,8 +21,8 @@ Complete these bounded Codex tasks in order. A task is not complete until tests 
 | R14 | Fixture profile, garage, history, settings, and locale preview | R5,R6 | **Accepted at mobile PR #10 merge `e4839c7`** — EN/NE/HI + AD/BS fixture preview; implementation brief: `implementation/briefs/R14-fixture-profile-settings-locale.md` |
 | R15 | SOS console UI and safety capability gate | R3,R5,R6 | **Accepted at mobile PR #11 merge `9e8854d`** — fixture-only deliberate activation/cancel/stand-down with no delivery claim; implementation brief: `implementation/briefs/R15-fixture-sos-console-safety-gate.md` |
 | R16 | Visual foundation refinement | R9–R15 | **Accepted at mobile PR #12 merge `0ccdeac`** — shared vector icon system, map-first surfaces, truthful local-preview copy, and no rider-facing emoji/debug labels |
-| R17 | Mobile integration hardening and release-readiness QA | R6–R16 | **Ready for implementation** — cross-app navigation, resilient state coverage, accessibility/device/theme/localization validation; implementation brief: `implementation/briefs/R17-mobile-integration-readiness.md` |
-| R18 | Release-quality audit | R17 | full state/a11y/glare/offline/device audit and backend-handoff gap list |
+| R17 | Mobile integration hardening and release-readiness QA | R6–R16 | **Accepted at mobile PR #13 merge `afd2f2b`** — navigation, resilient states, keyboard/safe-area hardening, and reviewable simulator evidence; implementation brief: `implementation/briefs/R17-mobile-integration-readiness.md` |
+| R18 | Final mobile release-quality audit | R17 | **Ready for implementation** — evidence-led go/no-go audit, mobile baseline freeze recommendation, and backend-handoff gap list; implementation brief: `implementation/briefs/R18-final-mobile-release-audit.md` |
 
 ## Task protocol
 
