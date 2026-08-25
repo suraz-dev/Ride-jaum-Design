@@ -304,11 +304,11 @@ components:
         updatedAt: { $ref: '#/components/schemas/UtcInstant' }
     UpdateSafetyProfileCommand:
       type: object
-      required: [state, emergencyContactCount, medicalCardPresent]
+      required: [state]
       properties:
         state: { enum: [enabled, disabled] }
-        emergencyContactCount: { type: integer, minimum: 0 }
-        medicalCardPresent: { type: boolean }
+        emergencyContactCount: { type: integer, maximum: 0, default: 0, description: Must be 0 in S3; protected contact storage is deferred }
+        medicalCardPresent: { type: boolean, enum: [false], default: false, description: Must be false in S3; protected medical card storage is deferred }
     Trip:
       type: object
       required: [id, state, country, version]
