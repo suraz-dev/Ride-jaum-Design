@@ -10,27 +10,97 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /devices:
+    post:
+      operationId: registerDevice
+      summary: Register safe device metadata for authenticated user
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RegisterDeviceCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/DeviceSessionResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
   /me:
     get:
       operationId: getCurrentUser
+      summary: Retrieve current authenticated user profile
       responses:
         '200': { $ref: '#/components/responses/CurrentUser' }
         '401': { $ref: '#/components/responses/ApiError' }
+    patch:
+      operationId: updateCurrentUser
+      summary: Update current user safe profile metadata
+      parameters:
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateCurrentUserCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/CurrentUser' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '412': { $ref: '#/components/responses/ApiError' }
+  /me/device-sessions:
+    get:
+      operationId: listDeviceSessions
+      summary: List authenticated user device sessions
+      responses:
+        '200': { $ref: '#/components/responses/DeviceSessionList' }
+        '401': { $ref: '#/components/responses/ApiError' }
+  /me/device-sessions/{sessionId}:
+    parameters: [{ $ref: '#/components/parameters/SessionId' }]
+    delete:
+      operationId: revokeDeviceSession
+      summary: Revoke an active device session
+      responses:
+        '204': { description: Session revoked successfully }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
   /me/consents:
     get:
       operationId: listConsentReceipts
+      summary: List user immutable consent receipts
       responses:
         '200': { $ref: '#/components/responses/ConsentList' }
+        '401': { $ref: '#/components/responses/ApiError' }
     post:
       operationId: recordConsentDecision
+      summary: Record immutable grant or revoke consent fact
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/ConsentDecisionCommand' } } }
       responses:
         '200': { $ref: '#/components/responses/ConsentReceipt' }
+        '201': { $ref: '#/components/responses/ConsentReceipt' }
         '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
         '409': { $ref: '#/components/responses/ApiError' }
+  /me/safety-profile:
+    get:
+      operationId: getSafetyProfile
+      summary: Get safe safety profile summary
+      responses:
+        '200': { $ref: '#/components/responses/SafetyProfileResponse' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+    put:
+      operationId: updateSafetyProfile
+      summary: Update safe safety profile summary
+      parameters:
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateSafetyProfileCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/SafetyProfileResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '412': { $ref: '#/components/responses/ApiError' }
   /trips:
     post:
       operationId: createTrip
@@ -127,6 +197,7 @@ components:
   parameters:
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 16, maxLength: 256 } }
     IfMatch: { name: If-Match, in: header, required: true, schema: { type: string } }
+    SessionId: { name: sessionId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     TripId: { name: tripId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     RideId: { name: rideId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     PackId: { name: packId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
@@ -164,6 +235,80 @@ components:
         requestId: { type: string }
         retryable: { type: boolean }
         details: { type: array, items: { type: object, properties: { field: { type: string }, code: { type: string }, message: { type: string } } } }
+    User:
+      type: object
+      required: [id, accountState, locale, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        displayName: { type: string, maxLength: 60 }
+        accountState: { enum: [active, suspended, deactivated] }
+        locale: { type: string, example: ne-NP }
+        version: { type: string }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    UpdateCurrentUserCommand:
+      type: object
+      properties:
+        displayName: { type: string, maxLength: 60 }
+        locale: { type: string, example: ne-NP }
+    DeviceSession:
+      type: object
+      required: [id, platform, appVersion, state, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        deviceLabel: { type: string, maxLength: 100 }
+        platform: { enum: [ios, android] }
+        appVersion: { type: string, maxLength: 30 }
+        state: { enum: [active, revoked, expired] }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        lastUsedAt: { $ref: '#/components/schemas/UtcInstant' }
+        revokedAt: { $ref: '#/components/schemas/UtcInstant' }
+    RegisterDeviceCommand:
+      type: object
+      required: [platform, appVersion]
+      properties:
+        deviceLabel: { type: string, maxLength: 100 }
+        platform: { enum: [ios, android] }
+        appVersion: { type: string, maxLength: 30 }
+        deviceFingerprint: { type: string, maxLength: 128 }
+    ConsentReceipt:
+      type: object
+      required: [id, purpose, state, policyVersion, contentHash, locale, recordedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        purpose: { enum: [location_sharing, safety_profile, analytics, marketing] }
+        state: { enum: [granted, revoked, expired] }
+        policyVersion: { type: string }
+        contentHash: { type: string }
+        locale: { type: string }
+        source: { type: string }
+        recordedAt: { $ref: '#/components/schemas/UtcInstant' }
+    ConsentDecisionCommand:
+      type: object
+      required: [purpose, decision, policyVersion, contentHash, locale]
+      properties:
+        purpose: { enum: [location_sharing, safety_profile, analytics, marketing] }
+        decision: { enum: [grant, revoke] }
+        policyVersion: { type: string }
+        contentHash: { type: string }
+        locale: { type: string }
+    SafetyProfile:
+      type: object
+      required: [id, state, emergencyContactCount, medicalCardPresent, version, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        state: { enum: [enabled, disabled] }
+        emergencyContactCount: { type: integer, minimum: 0 }
+        medicalCardPresent: { type: boolean }
+        version: { type: string }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    UpdateSafetyProfileCommand:
+      type: object
+      required: [state, emergencyContactCount, medicalCardPresent]
+      properties:
+        state: { enum: [enabled, disabled] }
+        emergencyContactCount: { type: integer, minimum: 0 }
+        medicalCardPresent: { type: boolean }
     Trip:
       type: object
       required: [id, state, country, version]
@@ -225,13 +370,6 @@ components:
         expiresAt: { $ref: '#/components/schemas/UtcInstant' }
         location: { $ref: '#/components/schemas/GeoPoint' }
         evidence: { enum: [device_reported, server_relayed] }
-    ConsentDecisionCommand:
-      type: object
-      required: [purpose, decision, policyVersion]
-      properties:
-        purpose: { enum: [location_sharing, safety_profile, analytics, marketing] }
-        decision: { enum: [grant, revoke] }
-        policyVersion: { type: string }
     ActivateSafetyIncidentCommand:
       type: object
       required: [activationMethod]
@@ -250,9 +388,12 @@ components:
         version: { type: string }
   responses:
     ApiError: { description: Safe API error, content: { application/json: { schema: { type: object, required: [error], properties: { error: { $ref: '#/components/schemas/ErrorBody' } } } } } }
-    CurrentUser: { description: Current user, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: object }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
-    ConsentList: { description: Consent receipts, content: { application/json: { schema: { type: object } } } }
-    ConsentReceipt: { description: Consent receipt, content: { application/json: { schema: { type: object } } } }
+    CurrentUser: { description: Current user profile, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/User' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    DeviceSessionResponse: { description: Device session registration result, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/DeviceSession' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    DeviceSessionList: { description: List of device sessions, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/DeviceSession' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    ConsentList: { description: Consent receipts list, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/ConsentReceipt' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    ConsentReceipt: { description: Recorded consent receipt, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/ConsentReceipt' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    SafetyProfileResponse: { description: Safe safety profile summary, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/SafetyProfile' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     Trip: { description: Trip, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/Trip' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     RouteCandidates: { description: Route candidates, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/RouteCandidate' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     Presence: { description: Presence, content: { application/json: { schema: { type: object } } } }
