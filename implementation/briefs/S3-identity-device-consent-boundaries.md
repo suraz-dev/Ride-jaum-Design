@@ -1,10 +1,10 @@
 # S3 — Identity, Device, Consent, and Safety-Profile Boundaries
 
-> **Status:** Ready for implementation after S2 is merged to backend `main`
+> **Status:** Ready for implementation from backend `dev` after S2 merge
 >
 > **Target repository:** `RideJaunm-Backend`
 >
-> **Required base:** backend `main` containing the accepted S2 operational data foundation.
+> **Required base:** backend `dev` containing the accepted S2 operational data foundation.
 >
 > **Architecture authority:** [ADR-002 identity/device sessions](../../docs/18-adr-002-identity-device-decision-packet.md), [ADR-008 consent and protected data](../../docs/24-adr-008-nepal-consent-emergency-copy-decision-packet.md), [LLD](../../docs/13-system-lld.md), [S1 foundations](../../docs/27-s1-api-event-contract-foundations.md), and [schema catalogue](../../docs/28-s1-domain-api-schema-catalogue.md).
 
@@ -83,7 +83,7 @@ Identity-provider selection/integration, PKCE exchange, JWT/JWKS validation agai
 
 ## Antigravity completion report
 
-Open an **unmerged** PR against backend `main` only after S2 is present in `main`. Report:
+Open an **unmerged** PR against backend `dev` only after S2 is present in `dev`. Report:
 
 1. base/head commits and Design-contract commit used;
 2. Flyway migration inventory with forward-correction notes;
