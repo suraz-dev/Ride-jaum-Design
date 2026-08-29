@@ -8,7 +8,7 @@
 | S3 | Build identity/device/consent/emergency-profile boundaries | S1,S2 | resource policy tests and audit records; implementation brief: [S3 identity/device/consent boundaries](briefs/S3-identity-device-consent-boundaries.md) |
 | S4 | Implement core trip/group/ride persistence and transactional outbox | S1,S2 | transactional writes emit idempotent events; implementation brief: [S4 trip/group/outbox](briefs/S4-trip-group-outbox.md) |
 | S5 | Implement geospatial ingestion, validation, graph-version registry | S2 | malformed data quarantined; source/freshness visible; implementation brief: [S5 geospatial ingestion and graph registry](briefs/S5-geospatial-ingestion-graph-registry.md) |
-| S6 | Implement route candidate API and profile contract | S4,S5 | three candidates/restrictions/provenance tests |
+| S6 | Implement route candidate API and profile contract | S4,S5 | three candidates/restrictions/provenance tests; implementation brief: [S6 route-candidate profile contract](briefs/S6-route-candidate-profile-contract.md) |
 | S7 | Implement pack manifest, signed assets, integrity receipts | S5 | resumable partial/stale/integrity tests |
 | S8 | Implement realtime presence/location and sync queue | S3,S4 | membership, TTL, stale, dedupe and privacy tests |
 | S9 | Implement social/chat/media boundaries | S3,S4 | authorization, moderation, queued-write tests |
