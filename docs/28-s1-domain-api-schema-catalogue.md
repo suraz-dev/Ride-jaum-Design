@@ -207,8 +207,10 @@ type OfflinePackManifest = {
 | Method | Path | Purpose | Key rules |
 |---|---|---|---|
 | `POST` | `/v1/geo/sources` | register geo source | `geo_admin` only; `Idempotency-Key` required |
+| `POST` | `/v1/geo/sources/{sourceId}/review` | review and approve geo source | `geo_admin` only; approve/reject source; `Idempotency-Key` |
 | `POST` | `/v1/geo/datasets` | ingest synthetic dataset | `geo_admin` only; validation pipeline; quarantine on failure; `Idempotency-Key` |
-| `POST` | `/v1/geo/graphs` | create immutable graph version | `geo_admin` only; pins reviewed datasets; `Idempotency-Key` |
+| `POST` | `/v1/geo/datasets/{datasetId}/review` | review and approve dataset | `geo_admin` only; approve/reject dataset; `Idempotency-Key` |
+| `POST` | `/v1/geo/graphs` | create immutable graph version | `geo_admin` only; pins approved datasets; `Idempotency-Key` |
 | `POST` | `/v1/geo/graphs/{graphId}/publish` | publish graph version | `geo_admin` only; emits `graph.published.v1` outbox fact; immutable; `Idempotency-Key` |
 | `GET` | `/v1/geo/graphs/{graphId}` | read graph version status | safe provenance projection |
 | `GET` | `/v1/geo/graphs/active` | read active published graph | public/rider eligible graph metadata |

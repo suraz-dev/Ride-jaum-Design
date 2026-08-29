@@ -278,6 +278,22 @@ paths:
         '401': { $ref: '#/components/responses/ApiError' }
         '403': { $ref: '#/components/responses/ApiError' }
         '409': { $ref: '#/components/responses/ApiError' }
+  /geo/sources/{sourceId}/review:
+    parameters: [{ $ref: '#/components/parameters/GeoSourceId' }]
+    post:
+      operationId: reviewGeoSource
+      summary: Review and approve or reject a geospatial source (geo_admin only)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReviewGeoSourceCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/GeoSourceResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
   /geo/datasets:
     post:
       operationId: ingestGeoDataset
@@ -293,6 +309,22 @@ paths:
         '403': { $ref: '#/components/responses/ApiError' }
         '409': { $ref: '#/components/responses/ApiError' }
         '422': { $ref: '#/components/responses/ApiError' }
+  /geo/datasets/{datasetId}/review:
+    parameters: [{ $ref: '#/components/parameters/GeoDatasetId' }]
+    post:
+      operationId: reviewGeoDataset
+      summary: Review and approve or reject an ingested geographic dataset (geo_admin only)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReviewGeoDatasetCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/GeoDatasetResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
   /geo/graphs:
     post:
       operationId: createGraphVersion
@@ -716,6 +748,18 @@ components:
         sourceName: { type: string, minLength: 2, maxLength: 128 }
         sourceVersion: { type: string, minLength: 1, maxLength: 64 }
         licenceReference: { type: string, minLength: 1, maxLength: 256 }
+    ReviewGeoSourceCommand:
+      type: object
+      required: [reviewStatus]
+      properties:
+        reviewStatus: { enum: [APPROVED, REJECTED] }
+        reviewNotes: { type: string, maxLength: 512 }
+    ReviewGeoDatasetCommand:
+      type: object
+      required: [reviewStatus]
+      properties:
+        reviewStatus: { enum: [APPROVED, REJECTED] }
+        reviewNotes: { type: string, maxLength: 512 }
     GeoDataset:
       type: object
       required: [id, datasetType, sourceId, graphCoverageVersion, validFrom, freshUntil, checksum, reviewState, publishState, createdAt, updatedAt]
