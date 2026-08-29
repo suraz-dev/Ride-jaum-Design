@@ -230,6 +230,7 @@ paths:
       summary: Update member role or leave/remove member
       parameters:
         - { $ref: '#/components/parameters/IfMatch' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/UpdateGroupMembershipCommand' } } }
@@ -239,6 +240,7 @@ paths:
         '401': { $ref: '#/components/responses/ApiError' }
         '403': { $ref: '#/components/responses/ApiError' }
         '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
         '412': { $ref: '#/components/responses/ApiError' }
   /rides/{rideId}:
     parameters: [{ $ref: '#/components/parameters/RideId' }]
