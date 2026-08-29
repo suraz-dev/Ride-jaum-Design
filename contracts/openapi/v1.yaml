@@ -676,24 +676,64 @@ components:
         version: { type: string }
         createdAt: { $ref: '#/components/schemas/UtcInstant' }
         updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    RouteCandidateProvenance:
+      type: object
+      required: [graphVersionId, graphChecksum, configVersion, coverageReference, sourceVersion, datasetIds, generatedAt]
+      properties:
+        graphVersionId: { $ref: '#/components/schemas/OpaqueId' }
+        graphChecksum: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        configVersion: { type: string }
+        coverageReference: { type: string }
+        sourceVersion: { type: string }
+        datasetIds: { type: array, items: { $ref: '#/components/schemas/OpaqueId' } }
+        generatedAt: { $ref: '#/components/schemas/UtcInstant' }
     RouteCandidate:
       type: object
-      required: [id, profile, state, provenance]
+      required: [id, profile, state, capabilityDeclaration, provenance]
       properties:
         id: { $ref: '#/components/schemas/OpaqueId' }
         profile: { enum: [straight, curvy, supercurvy] }
         state: { enum: [available, restricted, unavailable] }
         distanceMeters: { type: integer, minimum: 0 }
         durationSeconds: { type: integer, minimum: 0 }
-        encodedPolyline: { type: string }
-        provenance: { type: object, required: [graphVersion, coverageVersion, generatedAt], properties: { graphVersion: { type: string }, coverageVersion: { type: string }, generatedAt: { $ref: '#/components/schemas/UtcInstant' } } }
+        elevationGainMeters: { type: integer }
+        curvatureScore: { type: number, minimum: 0, maximum: 100 }
+        restrictionReasonCodes: { type: array, items: { type: string } }
+        capabilityDeclaration: { type: string, enum: [synthetic_preview] }
+        preview:
+          type: object
+          description: Non-navigable visual hint reference for preview only; never raw route geometry.
+          properties:
+            previewFixtureRef: { type: string }
+            mode: { type: string, enum: [synthetic_preview] }
+        provenance: { $ref: '#/components/schemas/RouteCandidateProvenance' }
     RouteCandidatesCommand:
       type: object
-      required: [origin, destination]
+      required: [countryCode, configVersion, origin, destination, requestedProfiles]
       properties:
+        countryCode: { type: string, minLength: 2, maxLength: 3, example: 'NP' }
+        configVersion: { type: string, minLength: 2, maxLength: 32, example: 'v2026.1' }
         origin: { $ref: '#/components/schemas/GeoPoint' }
         destination: { $ref: '#/components/schemas/GeoPoint' }
         waypointIds: { type: array, items: { $ref: '#/components/schemas/OpaqueId' }, maxItems: 12 }
+        requestedProfiles:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items: { enum: [straight, curvy, supercurvy] }
+    RouteCandidatesMeta:
+      type: object
+      required: [requestId, calculationMode, countryCode, configVersion, graphVersionId, graphChecksum, freshnessState, generatedAt]
+      properties:
+        requestId: { type: string }
+        calculationMode: { type: string, enum: [synthetic_preview] }
+        countryCode: { type: string }
+        configVersion: { type: string }
+        graphVersionId: { $ref: '#/components/schemas/OpaqueId' }
+        graphChecksum: { type: string }
+        freshnessState: { enum: [fresh, stale, expired] }
+        generatedAt: { $ref: '#/components/schemas/UtcInstant' }
     PresenceCommand:
       type: object
       required: [state]
@@ -846,7 +886,7 @@ components:
     GeoDatasetResponse: { description: Geo dataset data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GeoDataset' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     GraphVersionResponse: { description: Graph version data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GraphVersion' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     QuarantineListResponse: { description: Quarantined records list and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/QuarantineRecord' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
-    RouteCandidates: { description: Route candidates, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/RouteCandidate' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    RouteCandidates: { description: Route candidates, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/RouteCandidate' } }, meta: { $ref: '#/components/schemas/RouteCandidatesMeta' } } } } } }
     Presence: { description: Presence, content: { application/json: { schema: { type: object } } } }
     PresenceList: { description: Presence list, content: { application/json: { schema: { type: object } } } }
     OfflinePackList: { description: Eligible offline packs, content: { application/json: { schema: { type: object } } } }

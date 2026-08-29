@@ -179,16 +179,48 @@ type QuarantineRecord = {
   rejectedAt: UtcInstant;
 };
 
+type RouteCandidateProvenance = {
+  graphVersionId: string;
+  graphChecksum: string;
+  configVersion: string;
+  coverageReference: string;
+  sourceVersion: string;
+  datasetIds: string[];
+  generatedAt: UtcInstant;
+};
+
 type RouteCandidate = {
   id: string;
   profile: 'straight' | 'curvy' | 'supercurvy';
   state: 'available' | 'restricted' | 'unavailable';
   distanceMeters?: number;
   durationSeconds?: number;
-  geometry: { encodedPolyline: string; precision: number };
-  restrictions: Array<{ code: string; severity: 'info' | 'warning' | 'blocker' }>;
-  provenance: { graphVersion: string; coverageVersion: string; generatedAt: UtcInstant };
-  country: CountryContext;
+  elevationGainMeters?: number;
+  curvatureScore?: number;
+  restrictionReasonCodes: string[];
+  capabilityDeclaration: 'synthetic_preview';
+  preview?: { previewFixtureRef: string; mode: 'synthetic_preview' };
+  provenance: RouteCandidateProvenance;
+};
+
+type RouteCandidatesCommand = {
+  countryCode: string;
+  configVersion: string;
+  origin: GeoPoint;
+  destination: GeoPoint;
+  waypointIds?: string[];
+  requestedProfiles: Array<'straight' | 'curvy' | 'supercurvy'>;
+};
+
+type RouteCandidatesMeta = {
+  requestId: string;
+  calculationMode: 'synthetic_preview';
+  countryCode: string;
+  configVersion: string;
+  graphVersionId: string;
+  graphChecksum: string;
+  freshnessState: 'fresh' | 'stale' | 'expired';
+  generatedAt: UtcInstant;
 };
 
 type OfflinePackManifest = {
