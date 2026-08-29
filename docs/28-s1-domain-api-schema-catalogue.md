@@ -131,9 +131,54 @@ type Ride = {
 | `PATCH` | `/v1/groups/{groupId}/members/{userId}` | change/remove membership | owner/admin policy; `If-Match` where mutable |
 | `GET` | `/v1/rides/{rideId}` | active/previous ride summary | scoped member/owner policy |
 
-## 5. Search, routing, geospatial data, and offline packs
+type GeoSource = {
+  id: string;
+  sourceName: string;
+  sourceVersion: string;
+  licenceReference: string;
+  reviewState: 'DRAFT' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUPERSEDED';
+  receivedAt: UtcInstant;
+  publishedAt?: UtcInstant;
+};
 
-```ts
+type GeoDataset = {
+  id: string;
+  datasetType: string;
+  sourceId: string;
+  graphCoverageVersion: string;
+  validFrom: UtcInstant;
+  freshUntil: UtcInstant;
+  checksum: string;
+  reviewState: 'DRAFT' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUPERSEDED';
+  publishState: 'UNPUBLISHED' | 'PUBLISHED' | 'ARCHIVED' | 'DEPRECATED';
+};
+
+type GraphVersion = {
+  id: string;
+  countryCode: string;
+  configVersion: string;
+  checksum: string;
+  coverageReference: string;
+  datasetIds: string[];
+  reviewState: 'draft' | 'reviewed' | 'approved' | 'rejected';
+  publishState: 'unpublished' | 'published' | 'superseded' | 'expired';
+  validFrom: UtcInstant;
+  freshUntil: UtcInstant;
+  buildAt: UtcInstant;
+  publishedAt?: UtcInstant;
+  version: ResourceVersion;
+};
+
+type QuarantineRecord = {
+  id: string;
+  sourceId?: string;
+  datasetId?: string;
+  rejectionReason: string;
+  rejectionCategory: string;
+  rejectionMetadata: Record<string, any>;
+  rejectedAt: UtcInstant;
+};
+
 type RouteCandidate = {
   id: string;
   profile: 'straight' | 'curvy' | 'supercurvy';
@@ -161,6 +206,13 @@ type OfflinePackManifest = {
 
 | Method | Path | Purpose | Key rules |
 |---|---|---|---|
+| `POST` | `/v1/geo/sources` | register geo source | `geo_admin` only; `Idempotency-Key` required |
+| `POST` | `/v1/geo/datasets` | ingest synthetic dataset | `geo_admin` only; validation pipeline; quarantine on failure; `Idempotency-Key` |
+| `POST` | `/v1/geo/graphs` | create immutable graph version | `geo_admin` only; pins reviewed datasets; `Idempotency-Key` |
+| `POST` | `/v1/geo/graphs/{graphId}/publish` | publish graph version | `geo_admin` only; emits `graph.published.v1` outbox fact; immutable; `Idempotency-Key` |
+| `GET` | `/v1/geo/graphs/{graphId}` | read graph version status | safe provenance projection |
+| `GET` | `/v1/geo/graphs/active` | read active published graph | public/rider eligible graph metadata |
+| `GET` | `/v1/geo/quarantine` | list quarantine records | `geo_admin` only; safe diagnostic reason codes |
 | `GET` | `/v1/places:search` | place search | query/rate limits; scoped coverage; do not log raw queries unnecessarily |
 | `POST` | `/v1/routes:candidates` | calculate the three route profiles | idempotency; validate territory/capability; preserve provenance |
 | `GET` | `/v1/routes/{routeId}` | fetch candidate/detail | ownership/entitlement; expose restrictions/attribution |

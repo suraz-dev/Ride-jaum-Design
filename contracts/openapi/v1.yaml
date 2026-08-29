@@ -264,6 +264,91 @@ paths:
         '200': { $ref: '#/components/responses/RideResponse' }
         '401': { $ref: '#/components/responses/ApiError' }
         '404': { $ref: '#/components/responses/ApiError' }
+  /geo/sources:
+    post:
+      operationId: registerGeoSource
+      summary: Register a geospatial source with licensing and review state (geo_admin only)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateGeoSourceCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/GeoSourceResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /geo/datasets:
+    post:
+      operationId: ingestGeoDataset
+      summary: Ingest and validate a synthetic geographic dataset (geo_admin only)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/IngestGeoDatasetCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/GeoDatasetResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
+  /geo/graphs:
+    post:
+      operationId: createGraphVersion
+      summary: Create an immutable graph version pinning reviewed datasets (geo_admin only)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateGraphVersionCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/GraphVersionResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
+  /geo/graphs/{graphId}/publish:
+    parameters: [{ $ref: '#/components/parameters/GraphId' }]
+    post:
+      operationId: publishGraphVersion
+      summary: Atomically publish an approved graph version and emit graph.published.v1 (geo_admin only)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200': { $ref: '#/components/responses/GraphVersionResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /geo/graphs/{graphId}:
+    parameters: [{ $ref: '#/components/parameters/GraphId' }]
+    get:
+      operationId: getGraphVersion
+      summary: Get graph version status and provenance metadata
+      responses:
+        '200': { $ref: '#/components/responses/GraphVersionResponse' }
+        '404': { $ref: '#/components/responses/ApiError' }
+  /geo/graphs/active:
+    get:
+      operationId: getActiveGraphVersion
+      summary: Get current active published graph version for country
+      parameters:
+        - name: countryCode
+          in: query
+          required: false
+          schema: { type: string, default: 'NP' }
+      responses:
+        '200': { $ref: '#/components/responses/GraphVersionResponse' }
+        '404': { $ref: '#/components/responses/ApiError' }
+  /geo/quarantine:
+    get:
+      operationId: listQuarantinedRecords
+      summary: List quarantined ingestion records with safe diagnostic reason codes (geo_admin only)
+      responses:
+        '200': { $ref: '#/components/responses/QuarantineListResponse' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
   /routes:candidates:
     post:
       operationId: calculateRouteCandidates
@@ -339,6 +424,9 @@ components:
     RideId: { name: rideId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     PackId: { name: packId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     IncidentId: { name: incidentId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    GeoSourceId: { name: sourceId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    GeoDatasetId: { name: datasetId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    GraphId: { name: graphId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
   schemas:
     OpaqueId: { type: string, minLength: 8, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }
     UtcInstant: { type: string, format: date-time, description: UTC RFC 3339 instant }
@@ -608,6 +696,95 @@ components:
         latestEvidence: { enum: [local_recorded, server_accepted, provider_accepted, delivery_unknown, recipient_acknowledged, failed] }
         country: { $ref: '#/components/schemas/CountryContext' }
         version: { type: string }
+    GeoSource:
+      type: object
+      required: [id, sourceName, sourceVersion, licenceReference, reviewState, receivedAt, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        sourceName: { type: string, minLength: 2, maxLength: 128 }
+        sourceVersion: { type: string, minLength: 1, maxLength: 64 }
+        licenceReference: { type: string, minLength: 1, maxLength: 256 }
+        reviewState: { enum: [DRAFT, UNDER_REVIEW, APPROVED, REJECTED, SUPERSEDED] }
+        receivedAt: { $ref: '#/components/schemas/UtcInstant' }
+        publishedAt: { $ref: '#/components/schemas/UtcInstant' }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    CreateGeoSourceCommand:
+      type: object
+      required: [sourceName, sourceVersion, licenceReference]
+      properties:
+        sourceName: { type: string, minLength: 2, maxLength: 128 }
+        sourceVersion: { type: string, minLength: 1, maxLength: 64 }
+        licenceReference: { type: string, minLength: 1, maxLength: 256 }
+    GeoDataset:
+      type: object
+      required: [id, datasetType, sourceId, graphCoverageVersion, validFrom, freshUntil, checksum, reviewState, publishState, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        datasetType: { type: string, minLength: 2, maxLength: 64 }
+        sourceId: { $ref: '#/components/schemas/OpaqueId' }
+        graphCoverageVersion: { type: string, minLength: 1, maxLength: 64 }
+        validFrom: { $ref: '#/components/schemas/UtcInstant' }
+        freshUntil: { $ref: '#/components/schemas/UtcInstant' }
+        checksum: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        reviewState: { enum: [DRAFT, UNDER_REVIEW, APPROVED, REJECTED, SUPERSEDED] }
+        publishState: { enum: [UNPUBLISHED, PUBLISHED, ARCHIVED, DEPRECATED] }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    IngestGeoDatasetCommand:
+      type: object
+      required: [datasetType, sourceId, graphCoverageVersion, validFrom, freshUntil, checksum, boundaryWkt]
+      properties:
+        datasetType: { type: string, minLength: 2, maxLength: 64 }
+        sourceId: { $ref: '#/components/schemas/OpaqueId' }
+        graphCoverageVersion: { type: string, minLength: 1, maxLength: 64 }
+        validFrom: { $ref: '#/components/schemas/UtcInstant' }
+        freshUntil: { $ref: '#/components/schemas/UtcInstant' }
+        checksum: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        boundaryWkt: { type: string, description: SRID 4326 Polygon/MultiPolygon WKT }
+    GraphVersion:
+      type: object
+      required: [id, countryCode, configVersion, checksum, coverageReference, datasetIds, reviewState, publishState, validFrom, freshUntil, buildAt, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
+        configVersion: { type: string }
+        checksum: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        coverageReference: { type: string }
+        datasetIds: { type: array, items: { $ref: '#/components/schemas/OpaqueId' } }
+        reviewState: { enum: [draft, reviewed, approved, rejected] }
+        publishState: { enum: [unpublished, published, superseded, expired] }
+        validFrom: { $ref: '#/components/schemas/UtcInstant' }
+        freshUntil: { $ref: '#/components/schemas/UtcInstant' }
+        buildAt: { $ref: '#/components/schemas/UtcInstant' }
+        publishedAt: { $ref: '#/components/schemas/UtcInstant' }
+        version: { type: string }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    CreateGraphVersionCommand:
+      type: object
+      required: [countryCode, configVersion, checksum, coverageReference, datasetIds, validFrom, freshUntil]
+      properties:
+        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
+        configVersion: { type: string }
+        checksum: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        coverageReference: { type: string }
+        datasetIds: { type: array, items: { $ref: '#/components/schemas/OpaqueId' } }
+        validFrom: { $ref: '#/components/schemas/UtcInstant' }
+        freshUntil: { $ref: '#/components/schemas/UtcInstant' }
+        coverageBoundaryWkt: { type: string }
+    QuarantineRecord:
+      type: object
+      required: [id, rejectionReason, rejectionCategory, rejectedAt, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        sourceId: { $ref: '#/components/schemas/OpaqueId' }
+        datasetId: { $ref: '#/components/schemas/OpaqueId' }
+        rejectionReason: { type: string }
+        rejectionCategory: { type: string }
+        rejectionMetadata: { type: object }
+        rejectedAt: { $ref: '#/components/schemas/UtcInstant' }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
   responses:
     ApiError: { description: Safe API error, content: { application/json: { schema: { type: object, required: [error], properties: { error: { $ref: '#/components/schemas/ErrorBody' } } } } } }
     CurrentUser: { description: Current user profile, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/User' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
@@ -621,6 +798,10 @@ components:
     GroupInviteResponse: { description: Group invite data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GroupInvite' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     GroupMembershipResponse: { description: Group membership data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GroupMembership' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     RideResponse: { description: Ride data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/Ride' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    GeoSourceResponse: { description: Geo source data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GeoSource' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    GeoDatasetResponse: { description: Geo dataset data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GeoDataset' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    GraphVersionResponse: { description: Graph version data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GraphVersion' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    QuarantineListResponse: { description: Quarantined records list and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/QuarantineRecord' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     RouteCandidates: { description: Route candidates, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/RouteCandidate' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     Presence: { description: Presence, content: { application/json: { schema: { type: object } } } }
     PresenceList: { description: Presence list, content: { application/json: { schema: { type: object } } } }
