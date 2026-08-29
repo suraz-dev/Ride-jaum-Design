@@ -35,7 +35,10 @@
 |---|---|---|---|
 | `consent.granted.v1` / `consent.revoked.v1` | protected | receipt ID, purpose, policy version, state, time | policy projection, audit, sync |
 | `device.session_revoked.v1` | protected | device session ID, reason class, time | auth/session cache, audit |
-| `trip.created.v1` / `trip.planned.v1` | internal | trip ID, owner ID, selected route ref, version | trip projection, notification eligibility |
+| `group.created.v1` | protected | group ID, name, creator ID, version | group projection, access policy |
+| `group.invited.v1` | protected | invite ID, group ID, creator ID, expiresAt, state (no plaintext secret) | invite lifecycle, audit |
+| `group.invite_revoked.v1` | protected | invite ID, group ID, actor ID, state | invite lifecycle, audit |
+| `trip.created.v1` / `trip.planned.v1` / `trip.updated.v1` / `trip.started.v1` / `trip.completed.v1` | internal | trip ID, owner ID, state, version | trip projection, notification eligibility |
 | `ride.started.v1` / `ride.completed.v1` | internal | ride/trip/group refs, time, state | presence eligibility, history projection |
 | `membership.changed.v1` | protected | group, member, role, change type | access policy, realtime ACL, audit |
 | `route.candidates_generated.v1` | internal | request/trip ref, candidate IDs, graph/coverage version | trip projection, observability |

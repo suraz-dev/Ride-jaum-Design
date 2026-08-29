@@ -221,6 +221,19 @@ paths:
         '401': { $ref: '#/components/responses/ApiError' }
         '404': { $ref: '#/components/responses/ApiError' }
         '409': { $ref: '#/components/responses/ApiError' }
+  /group-invites/{inviteId}/revoke:
+    parameters: [{ $ref: '#/components/parameters/InviteId' }]
+    post:
+      operationId: revokeGroupInvite
+      summary: Revoke an active group invite by owner or admin
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200': { $ref: '#/components/responses/GroupInviteResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
   /groups/{groupId}/members/{userId}:
     parameters:
       - { $ref: '#/components/parameters/GroupId' }
@@ -503,12 +516,19 @@ components:
         state: { enum: [active, removed, left] }
     GroupInvite:
       type: object
-      required: [id, groupId, creatorId, expiresAt, state, createdAt]
+      required: [id, groupId, creatorId, tokenStatus, expiresAt, state, createdAt]
       properties:
         id: { $ref: '#/components/schemas/OpaqueId' }
         groupId: { $ref: '#/components/schemas/OpaqueId' }
         creatorId: { $ref: '#/components/schemas/OpaqueId' }
-        inviteToken: { type: string, description: Opaque token returned only once upon invite creation }
+        inviteToken:
+          type: string
+          nullable: true
+          description: Plaintext opaque invite token emitted strictly once upon initial creation. On idempotent replays, this field is null and tokenStatus is already_emitted.
+        tokenStatus:
+          type: string
+          enum: [issued_once, already_emitted]
+          description: State of the one-time secret token exposure.
         expiresAt: { $ref: '#/components/schemas/UtcInstant' }
         state: { enum: [pending, accepted, revoked, expired] }
         createdAt: { $ref: '#/components/schemas/UtcInstant' }
