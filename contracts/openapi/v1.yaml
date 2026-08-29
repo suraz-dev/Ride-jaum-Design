@@ -104,23 +104,29 @@ paths:
   /trips:
     post:
       operationId: createTrip
+      summary: Create a durable private trip draft
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/CreateTripCommand' } } }
       responses:
-        '201': { $ref: '#/components/responses/Trip' }
+        '201': { $ref: '#/components/responses/TripResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
         '403': { $ref: '#/components/responses/ApiError' }
         '409': { $ref: '#/components/responses/ApiError' }
   /trips/{tripId}:
     parameters: [{ $ref: '#/components/parameters/TripId' }]
     get:
       operationId: getTrip
+      summary: Read owner or member visible trip
       responses:
-        '200': { $ref: '#/components/responses/Trip' }
+        '200': { $ref: '#/components/responses/TripResponse' }
+        '401': { $ref: '#/components/responses/ApiError' }
         '404': { $ref: '#/components/responses/ApiError' }
     put:
       operationId: updateTrip
+      summary: Update trip attributes with optimistic locking
       parameters:
         - { $ref: '#/components/parameters/IfMatch' }
         - { $ref: '#/components/parameters/IdempotencyKey' }
@@ -128,8 +134,121 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/UpdateTripCommand' } } }
       responses:
-        '200': { $ref: '#/components/responses/Trip' }
+        '200': { $ref: '#/components/responses/TripResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
         '409': { $ref: '#/components/responses/ApiError' }
+        '412': { $ref: '#/components/responses/ApiError' }
+  /trips/{tripId}/start:
+    parameters: [{ $ref: '#/components/parameters/TripId' }]
+    post:
+      operationId: startTrip
+      summary: Transition trip to active and start ride fact
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200': { $ref: '#/components/responses/RideResponse' }
+        '201': { $ref: '#/components/responses/RideResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /trips/{tripId}/complete:
+    parameters: [{ $ref: '#/components/parameters/TripId' }]
+    post:
+      operationId: completeTrip
+      summary: Complete trip and associated active ride
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200': { $ref: '#/components/responses/TripResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /groups:
+    post:
+      operationId: createGroup
+      summary: Create a private group and assign creator as owner
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateGroupCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/GroupResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /groups/{groupId}:
+    parameters: [{ $ref: '#/components/parameters/GroupId' }]
+    get:
+      operationId: getGroup
+      summary: Read group summary (requires active membership)
+      responses:
+        '200': { $ref: '#/components/responses/GroupResponse' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+  /groups/{groupId}/invites:
+    parameters: [{ $ref: '#/components/parameters/GroupId' }]
+    post:
+      operationId: createGroupInvite
+      summary: Create an expiring opaque group invite (owner or admin only)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateGroupInviteCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/GroupInviteResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /group-invites/{inviteId}/accept:
+    parameters: [{ $ref: '#/components/parameters/InviteId' }]
+    post:
+      operationId: acceptGroupInvite
+      summary: Accept group invite with token and become an active member
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AcceptGroupInviteCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/GroupMembershipResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+  /groups/{groupId}/members/{userId}:
+    parameters:
+      - { $ref: '#/components/parameters/GroupId' }
+      - { $ref: '#/components/parameters/UserId' }
+    patch:
+      operationId: updateGroupMembership
+      summary: Update member role or leave/remove member
+      parameters:
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateGroupMembershipCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/GroupMembershipResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '412': { $ref: '#/components/responses/ApiError' }
+  /rides/{rideId}:
+    parameters: [{ $ref: '#/components/parameters/RideId' }]
+    get:
+      operationId: getRide
+      summary: Get ride summary (requires trip owner or group member)
+      responses:
+        '200': { $ref: '#/components/responses/RideResponse' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
   /routes:candidates:
     post:
       operationId: calculateRouteCandidates
@@ -199,6 +318,9 @@ components:
     IfMatch: { name: If-Match, in: header, required: true, schema: { type: string } }
     SessionId: { name: sessionId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     TripId: { name: tripId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    GroupId: { name: groupId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    InviteId: { name: inviteId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
+    UserId: { name: userId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     RideId: { name: rideId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     PackId: { name: packId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
     IncidentId: { name: incidentId, in: path, required: true, schema: { $ref: '#/components/schemas/OpaqueId' } }
@@ -311,16 +433,21 @@ components:
         medicalCardPresent: { type: boolean, enum: [false], default: false, description: Must be false in S3; protected medical card storage is deferred }
     Trip:
       type: object
-      required: [id, state, country, version]
+      required: [id, ownerId, state, country, version, createdAt, updatedAt]
       properties:
         id: { $ref: '#/components/schemas/OpaqueId' }
+        ownerId: { $ref: '#/components/schemas/OpaqueId' }
         state: { enum: [draft, planned, active, completed, cancelled] }
         title: { type: string, maxLength: 120 }
         origin: { $ref: '#/components/schemas/GeoPoint' }
         destination: { $ref: '#/components/schemas/GeoPoint' }
         selectedRouteCandidateId: { $ref: '#/components/schemas/OpaqueId' }
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
+        plannedStartAt: { $ref: '#/components/schemas/UtcInstant' }
         country: { $ref: '#/components/schemas/CountryContext' }
         version: { type: string }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
     CreateTripCommand:
       type: object
       required: [origin, destination]
@@ -329,11 +456,84 @@ components:
         origin: { $ref: '#/components/schemas/GeoPoint' }
         destination: { $ref: '#/components/schemas/GeoPoint' }
         plannedStartAt: { $ref: '#/components/schemas/UtcInstant' }
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
     UpdateTripCommand:
       type: object
       properties:
         title: { type: string, maxLength: 120 }
+        origin: { $ref: '#/components/schemas/GeoPoint' }
+        destination: { $ref: '#/components/schemas/GeoPoint' }
         plannedStartAt: { $ref: '#/components/schemas/UtcInstant' }
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
+    Group:
+      type: object
+      required: [id, name, visibility, creatorId, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        name: { type: string, minLength: 2, maxLength: 80 }
+        visibility: { enum: [private, invite_only] }
+        creatorId: { $ref: '#/components/schemas/OpaqueId' }
+        version: { type: string }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    CreateGroupCommand:
+      type: object
+      required: [name, visibility]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        visibility: { enum: [private, invite_only] }
+    GroupMembership:
+      type: object
+      required: [id, groupId, userId, role, state, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
+        userId: { $ref: '#/components/schemas/OpaqueId' }
+        role: { enum: [owner, admin, member] }
+        state: { enum: [active, removed, left] }
+        version: { type: string }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    UpdateGroupMembershipCommand:
+      type: object
+      properties:
+        role: { enum: [owner, admin, member] }
+        state: { enum: [active, removed, left] }
+    GroupInvite:
+      type: object
+      required: [id, groupId, creatorId, expiresAt, state, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
+        creatorId: { $ref: '#/components/schemas/OpaqueId' }
+        inviteToken: { type: string, description: Opaque token returned only once upon invite creation }
+        expiresAt: { $ref: '#/components/schemas/UtcInstant' }
+        state: { enum: [pending, accepted, revoked, expired] }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+    CreateGroupInviteCommand:
+      type: object
+      required: [expiresInHours]
+      properties:
+        expiresInHours: { type: integer, minimum: 1, maximum: 720 }
+    AcceptGroupInviteCommand:
+      type: object
+      required: [inviteToken]
+      properties:
+        inviteToken: { type: string, minLength: 16, maxLength: 128 }
+    Ride:
+      type: object
+      required: [id, tripId, state, sharingState, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        tripId: { $ref: '#/components/schemas/OpaqueId' }
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
+        state: { enum: [preparing, in_progress, paused, completed, cancelled] }
+        sharingState: { enum: [off, active, stopped] }
+        startedAt: { $ref: '#/components/schemas/UtcInstant' }
+        completedAt: { $ref: '#/components/schemas/UtcInstant' }
+        version: { type: string }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
     RouteCandidate:
       type: object
       required: [id, profile, state, provenance]
@@ -394,7 +594,11 @@ components:
     ConsentList: { description: Consent receipts list, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/ConsentReceipt' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     ConsentReceipt: { description: Recorded consent receipt, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/ConsentReceipt' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     SafetyProfileResponse: { description: Safe safety profile summary, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/SafetyProfile' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
-    Trip: { description: Trip, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/Trip' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    TripResponse: { description: Trip data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/Trip' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    GroupResponse: { description: Group data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/Group' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    GroupInviteResponse: { description: Group invite data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GroupInvite' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    GroupMembershipResponse: { description: Group membership data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GroupMembership' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
+    RideResponse: { description: Ride data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/Ride' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     RouteCandidates: { description: Route candidates, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/RouteCandidate' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     Presence: { description: Presence, content: { application/json: { schema: { type: object } } } }
     PresenceList: { description: Presence list, content: { application/json: { schema: { type: object } } } }
