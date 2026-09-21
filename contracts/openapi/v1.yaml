@@ -411,6 +411,7 @@ paths:
     get:
       operationId: listOfflinePacks
       summary: List eligible offline packs for authenticated rider
+      description: Lists eligible offline packs filtered by canonical countryCode ('NP') and required configVersion, bound to an active approved published fresh graph version. Returns canonicalized country and configVersion metadata.
       parameters:
         - name: countryCode
           in: query
@@ -418,17 +419,20 @@ paths:
           schema: { type: string, minLength: 2, maxLength: 3, example: 'NP' }
         - name: configVersion
           in: query
-          required: false
+          required: true
           schema: { type: string, minLength: 2, maxLength: 32, example: 'v2026.1' }
       responses:
         '200': { $ref: '#/components/responses/OfflinePackList' }
+        '400': { $ref: '#/components/responses/ApiError' }
         '401': { $ref: '#/components/responses/ApiError' }
         '403': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
   /offline-packs/{packId}/manifest:
     parameters: [{ $ref: '#/components/parameters/PackId' }]
     get:
       operationId: getOfflinePackManifest
       summary: Retrieve immutable integrity and provenance manifest for an offline pack
+      description: Returns integrity and provenance manifest for an eligible offline pack. Enforces shared eligibility validation: pack must be available, not retired, and fresh (freshUntil >= now); bound graph must be approved, published, and fresh. A manifest must never imply a fully usable pack when an asset is stale (fails closed with 422 PACK_STALE if any layer asset has freshUntil < now).
       responses:
         '200': { $ref: '#/components/responses/OfflinePackManifestResponse' }
         '401': { $ref: '#/components/responses/ApiError' }
@@ -440,6 +444,7 @@ paths:
     post:
       operationId: createPackDownloadIntent
       summary: Acquire short-lived fixture-backed download intent for offline pack assets
+      description: Issues short-lived scoped download intent tokens for pack assets. Enforces shared eligibility validation: pack must be available, not retired, and fresh; bound graph must be approved, published, and fresh. Download intents must not issue stale assets (fails closed with 422 if any target asset has freshUntil < now). Opaque fixture URIs are returned; zero live URLs or signed cloud storage URLs.
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: false
@@ -457,6 +462,7 @@ paths:
     post:
       operationId: recordPackReceipt
       summary: Record client-reported offline pack receipt telemetry
+      description: Ingests client verification telemetry for an offline pack. When intentId is supplied, the intent must belong to the requested pack, the authenticated user, the current device session, be in issued state, and not be expired (fails closed with 422 on mismatch, expiration, or non-issued state). Rejects telemetry byte counts or asset counts exceeding the pack or intent scope (422). Preserves server entitlement state strictly as recorded_unverified.
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
@@ -1026,7 +1032,7 @@ components:
         issuedAt: { $ref: '#/components/schemas/UtcInstant' }
     RecordPackReceiptCommand:
       type: object
-      required: [clientState]
+      required: [clientState, downloadedBytes, verifiedAssetCount]
       properties:
         intentId: { $ref: '#/components/schemas/OpaqueId' }
         clientState: { $ref: '#/components/schemas/ClientPackState' }

@@ -356,10 +356,10 @@ type OfflinePackReceipt = {
 | `GET` | `/v1/places:search` | place search | query/rate limits; scoped coverage; do not log raw queries unnecessarily |
 | `POST` | `/v1/routes:candidates` | calculate the three route profiles | idempotency; validate territory/capability; preserve provenance |
 | `GET` | `/v1/routes/{routeId}` | fetch candidate/detail | ownership/entitlement; expose restrictions/attribution |
-| `GET` | `/v1/offline-packs` | list eligible offline packs | filter by countryCode ('NP') and configVersion; bind to active published graph; fail closed (422) if graph stale/expired |
-| `GET` | `/v1/offline-packs/{packId}/manifest` | integrity and provenance manifest | per-layer checksum, byte size, and freshness window; fail closed if graph expired/config mismatch |
-| `POST` | `/v1/offline-packs/{packId}/download-intents` | acquire scoped asset download intent | short-lived expiry (15m); opaque `fixtureRef` URI; no live URLs/signed URLs; `Idempotency-Key` required |
-| `POST` | `/v1/offline-packs/{packId}/receipts` | record verified client receipt | telemetry only; server entitlement strictly remains `recorded_unverified`; never marks server-side verified; `Idempotency-Key` required |
+| `GET` | `/v1/offline-packs` | list eligible offline packs | filter by countryCode ('NP') and required configVersion; bind to active published graph; fail closed (422) if graph stale/expired |
+| `GET` | `/v1/offline-packs/{packId}/manifest` | integrity and provenance manifest | per-layer checksum, byte size, and freshness window; enforces shared eligibility: pack must be available, not retired, and fresh; bound graph must be approved, published, and fresh; fails closed with 422 PACK_STALE if any layer asset is stale |
+| `POST` | `/v1/offline-packs/{packId}/download-intents` | acquire scoped asset download intent | short-lived expiry (15m); opaque `fixtureRef` URI; zero live URLs or signed URLs; enforces shared eligibility; fails closed with 422 if any target asset is stale; `Idempotency-Key` required |
+| `POST` | `/v1/offline-packs/{packId}/receipts` | record verified client receipt | telemetry only; when intentId supplied, verifies intent belongs to pack, user, device session, is issued and unexpired (422 on mismatch); rejects byte/asset counts exceeding pack or intent scope (422); server entitlement strictly remains `recorded_unverified`; `Idempotency-Key` required |
 
 ## 6. Presence, location, and sync
 
