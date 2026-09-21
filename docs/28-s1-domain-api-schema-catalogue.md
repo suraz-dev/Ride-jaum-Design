@@ -223,16 +223,122 @@ type RouteCandidatesMeta = {
   generatedAt: UtcInstant;
 };
 
+type PackState = 'available' | 'deprecated' | 'retired';
+
+type ClientPackState =
+  | 'queued'
+  | 'downloading'
+  | 'partial'
+  | 'verified'
+  | 'stale'
+  | 'failed';
+
+type ServerEntitlementState = 'recorded_unverified';
+
+type PackLayerCode =
+  | 'vector_tiles'
+  | 'elevation_dem'
+  | 'hillshade'
+  | 'hazard_zones'
+  | 'routing_graph'
+  | 'poi_places';
+
+type OfflinePackSummary = {
+  id: string;
+  regionCode: string;
+  name: LocalizedText;
+  countryCode: string;
+  configVersion: string;
+  graphVersionId: string;
+  state: PackState;
+  coverageReference: string;
+  totalBytes: number;
+  validFrom: UtcInstant;
+  freshUntil: UtcInstant;
+  capabilityDeclaration: 'synthetic_fixture';
+};
+
+type OfflinePackAsset = {
+  assetId: string;
+  layerCode: PackLayerCode;
+  contentType: string;
+  byteSize: number;
+  checksum: string;
+  validFrom: UtcInstant;
+  freshUntil: UtcInstant;
+  attributionReference: string;
+};
+
+type OfflinePackAttribution = {
+  sourceName: string;
+  licenceReference: string;
+  noticeText: string;
+};
+
 type OfflinePackManifest = {
   id: string;
-  state: 'available' | 'deprecated' | 'retired';
-  regionRef: string;
-  graphVersion: string;
-  coverageVersion: string;
-  country: CountryContext;
-  assets: Array<{ assetId: string; bytes: number; sha256: string; type: string }>;
-  attribution: Array<{ source: string; licenceUrl: string }>;
-  expiresAt?: UtcInstant;
+  packId: string;
+  regionCode: string;
+  name: LocalizedText;
+  countryCode: string;
+  configVersion: string;
+  graphVersionId: string;
+  state: PackState;
+  coverageReference: string;
+  totalBytes: number;
+  validFrom: UtcInstant;
+  freshUntil: UtcInstant;
+  capabilityDeclaration: 'synthetic_fixture';
+  assets: OfflinePackAsset[];
+  attributions: OfflinePackAttribution[];
+};
+
+type CreateDownloadIntentCommand = {
+  deviceSessionId: string;
+  targetLayers?: PackLayerCode[];
+};
+
+type DownloadIntentItem = {
+  layerCode: PackLayerCode;
+  contentType: string;
+  byteSize: number;
+  checksum: string;
+  fixtureRef: string;
+};
+
+type DownloadIntent = {
+  intentId: string;
+  packId: string;
+  userId: string;
+  deviceSessionId: string;
+  state: 'issued' | 'expired' | 'completed';
+  expiresAt: UtcInstant;
+  createdAt: UtcInstant;
+  items: DownloadIntentItem[];
+};
+
+type RecordPackReceiptCommand = {
+  intentId?: string;
+  deviceSessionId: string;
+  clientReportedState: ClientPackState;
+  downloadedBytes: number;
+  verifiedAssetCount: number;
+  failureReasonCode?: string;
+  clientEvidenceMetadata?: Record<string, unknown>;
+};
+
+type OfflinePackReceipt = {
+  receiptId: string;
+  packId: string;
+  userId: string;
+  deviceSessionId: string;
+  intentId?: string;
+  clientReportedState: ClientPackState;
+  serverEntitlementState: ServerEntitlementState;
+  downloadedBytes: number;
+  verifiedAssetCount: number;
+  failureReasonCode?: string;
+  recordedAt: UtcInstant;
 };
 ```
 
@@ -250,10 +356,10 @@ type OfflinePackManifest = {
 | `GET` | `/v1/places:search` | place search | query/rate limits; scoped coverage; do not log raw queries unnecessarily |
 | `POST` | `/v1/routes:candidates` | calculate the three route profiles | idempotency; validate territory/capability; preserve provenance |
 | `GET` | `/v1/routes/{routeId}` | fetch candidate/detail | ownership/entitlement; expose restrictions/attribution |
-| `GET` | `/v1/offline-packs` | list eligible packs | country/coverage/capability policy |
-| `GET` | `/v1/offline-packs/{packId}/manifest` | integrity and provenance manifest | signed/cached versioned document |
-| `POST` | `/v1/offline-packs/{packId}/download-intents` | acquire scoped asset download URLs | short-lived intents; no public bucket URL |
-| `POST` | `/v1/offline-packs/{packId}/receipts` | record verified client receipt | client claim is audit/telemetry; server still verifies catalog entitlement |
+| `GET` | `/v1/offline-packs` | list eligible offline packs | filter by countryCode ('NP') and configVersion; bind to active published graph; fail closed (422) if graph stale/expired |
+| `GET` | `/v1/offline-packs/{packId}/manifest` | integrity and provenance manifest | per-layer checksum, byte size, and freshness window; fail closed if graph expired/config mismatch |
+| `POST` | `/v1/offline-packs/{packId}/download-intents` | acquire scoped asset download intent | short-lived expiry (15m); opaque `fixtureRef` URI; no live URLs/signed URLs; `Idempotency-Key` required |
+| `POST` | `/v1/offline-packs/{packId}/receipts` | record verified client receipt | telemetry only; server entitlement strictly remains `recorded_unverified`; never marks server-side verified; `Idempotency-Key` required |
 
 ## 6. Presence, location, and sync
 

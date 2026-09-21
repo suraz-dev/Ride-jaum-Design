@@ -410,16 +410,65 @@ paths:
   /offline-packs:
     get:
       operationId: listOfflinePacks
+      summary: List eligible offline packs for authenticated rider
+      parameters:
+        - name: countryCode
+          in: query
+          required: false
+          schema: { type: string, minLength: 2, maxLength: 3, example: 'NP' }
+        - name: configVersion
+          in: query
+          required: false
+          schema: { type: string, minLength: 2, maxLength: 32, example: 'v2026.1' }
       responses:
         '200': { $ref: '#/components/responses/OfflinePackList' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+  /offline-packs/{packId}/manifest:
+    parameters: [{ $ref: '#/components/parameters/PackId' }]
+    get:
+      operationId: getOfflinePackManifest
+      summary: Retrieve immutable integrity and provenance manifest for an offline pack
+      responses:
+        '200': { $ref: '#/components/responses/OfflinePackManifestResponse' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
   /offline-packs/{packId}/download-intents:
     parameters: [{ $ref: '#/components/parameters/PackId' }]
     post:
       operationId: createPackDownloadIntent
+      summary: Acquire short-lived fixture-backed download intent for offline pack assets
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateDownloadIntentCommand' } } }
       responses:
-        '201': { $ref: '#/components/responses/DownloadIntent' }
+        '201': { $ref: '#/components/responses/DownloadIntentResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
         '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
+  /offline-packs/{packId}/receipts:
+    parameters: [{ $ref: '#/components/parameters/PackId' }]
+    post:
+      operationId: recordPackReceipt
+      summary: Record client-reported offline pack receipt telemetry
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RecordPackReceiptCommand' } } }
+      responses:
+        '201': { $ref: '#/components/responses/PackReceiptResponse' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
   /safety-incidents:
     post:
       operationId: activateSafetyIncident
@@ -869,6 +918,138 @@ components:
         rejectionMetadata: { type: object }
         rejectedAt: { $ref: '#/components/schemas/UtcInstant' }
         createdAt: { $ref: '#/components/schemas/UtcInstant' }
+    PackState:
+      type: string
+      enum: [available, deprecated, retired]
+    ClientPackState:
+      type: string
+      enum: [queued, downloading, partial, verified, stale, failed]
+    ServerEntitlementState:
+      type: string
+      enum: [recorded_unverified]
+    PackLayerCode:
+      type: string
+      enum: [vector_tiles, elevation_dem, hillshade, hazard_zones, routing_graph, poi_places]
+    OfflinePackSummary:
+      type: object
+      required: [id, regionCode, nameEn, state, countryCode, configVersion, graphVersionId, graphChecksum, coverageReference, totalBytes, assetCount, validFrom, freshUntil, capabilityDeclaration]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        regionCode: { type: string }
+        nameEn: { type: string }
+        nameLocal: { type: string }
+        state: { $ref: '#/components/schemas/PackState' }
+        countryCode: { type: string, example: 'NP' }
+        configVersion: { type: string, example: 'v2026.1' }
+        graphVersionId: { $ref: '#/components/schemas/OpaqueId' }
+        graphChecksum: { type: string }
+        coverageReference: { type: string }
+        totalBytes: { type: integer, format: int64 }
+        assetCount: { type: integer }
+        validFrom: { $ref: '#/components/schemas/UtcInstant' }
+        freshUntil: { $ref: '#/components/schemas/UtcInstant' }
+        capabilityDeclaration: { type: string, enum: [synthetic_fixture] }
+    OfflinePackAsset:
+      type: object
+      required: [assetId, layerCode, contentType, byteSize, checksum, validFrom, freshUntil, attribution, fixtureRef]
+      properties:
+        assetId: { $ref: '#/components/schemas/OpaqueId' }
+        layerCode: { $ref: '#/components/schemas/PackLayerCode' }
+        contentType: { type: string }
+        byteSize: { type: integer, format: int64 }
+        checksum: { type: string }
+        validFrom: { $ref: '#/components/schemas/UtcInstant' }
+        freshUntil: { $ref: '#/components/schemas/UtcInstant' }
+        attribution: { type: string }
+        fixtureRef: { type: string }
+    OfflinePackAttribution:
+      type: object
+      required: [source, license]
+      properties:
+        source: { type: string }
+        license: { type: string }
+        notice: { type: string }
+    OfflinePackManifest:
+      type: object
+      required: [id, packId, regionCode, nameEn, state, countryCode, configVersion, graphVersionId, graphChecksum, coverageReference, totalBytes, validFrom, freshUntil, capabilityDeclaration, assets, attributions]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        packId: { $ref: '#/components/schemas/OpaqueId' }
+        regionCode: { type: string }
+        nameEn: { type: string }
+        nameLocal: { type: string }
+        state: { $ref: '#/components/schemas/PackState' }
+        countryCode: { type: string, example: 'NP' }
+        configVersion: { type: string, example: 'v2026.1' }
+        graphVersionId: { $ref: '#/components/schemas/OpaqueId' }
+        graphChecksum: { type: string }
+        coverageReference: { type: string }
+        totalBytes: { type: integer, format: int64 }
+        validFrom: { $ref: '#/components/schemas/UtcInstant' }
+        freshUntil: { $ref: '#/components/schemas/UtcInstant' }
+        capabilityDeclaration: { type: string, enum: [synthetic_fixture] }
+        assets:
+          type: array
+          items: { $ref: '#/components/schemas/OfflinePackAsset' }
+        attributions:
+          type: array
+          items: { $ref: '#/components/schemas/OfflinePackAttribution' }
+    CreateDownloadIntentCommand:
+      type: object
+      properties:
+        requestedAssetIds:
+          type: array
+          items: { $ref: '#/components/schemas/OpaqueId' }
+    DownloadIntentItem:
+      type: object
+      required: [assetId, layerCode, contentType, byteSize, checksum, fixtureRef, capabilityDeclaration]
+      properties:
+        assetId: { $ref: '#/components/schemas/OpaqueId' }
+        layerCode: { $ref: '#/components/schemas/PackLayerCode' }
+        contentType: { type: string }
+        byteSize: { type: integer, format: int64 }
+        checksum: { type: string }
+        fixtureRef: { type: string }
+        capabilityDeclaration: { type: string, enum: [synthetic_fixture] }
+    DownloadIntent:
+      type: object
+      required: [id, packId, userId, state, expiresAt, items, issuedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        packId: { $ref: '#/components/schemas/OpaqueId' }
+        userId: { $ref: '#/components/schemas/OpaqueId' }
+        state: { type: string, enum: [issued, expired, completed] }
+        expiresAt: { $ref: '#/components/schemas/UtcInstant' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DownloadIntentItem' }
+        issuedAt: { $ref: '#/components/schemas/UtcInstant' }
+    RecordPackReceiptCommand:
+      type: object
+      required: [clientState]
+      properties:
+        intentId: { $ref: '#/components/schemas/OpaqueId' }
+        clientState: { $ref: '#/components/schemas/ClientPackState' }
+        downloadedBytes: { type: integer, format: int64, minimum: 0 }
+        verifiedAssetCount: { type: integer, minimum: 0 }
+        failureReasonCode: { type: string }
+        clientEvidenceMetadata: { type: object }
+    OfflinePackReceipt:
+      type: object
+      required: [id, packId, userId, clientReportedState, serverEntitlementState, downloadedBytes, verifiedAssetCount, recordedAt, evidenceDeclaration]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        packId: { $ref: '#/components/schemas/OpaqueId' }
+        userId: { $ref: '#/components/schemas/OpaqueId' }
+        deviceSessionId: { $ref: '#/components/schemas/OpaqueId' }
+        intentId: { $ref: '#/components/schemas/OpaqueId' }
+        clientReportedState: { $ref: '#/components/schemas/ClientPackState' }
+        serverEntitlementState: { $ref: '#/components/schemas/ServerEntitlementState' }
+        downloadedBytes: { type: integer, format: int64 }
+        verifiedAssetCount: { type: integer }
+        failureReasonCode: { type: string }
+        recordedAt: { $ref: '#/components/schemas/UtcInstant' }
+        evidenceDeclaration: { type: string, enum: [client_reported_telemetry] }
   responses:
     ApiError: { description: Safe API error, content: { application/json: { schema: { type: object, required: [error], properties: { error: { $ref: '#/components/schemas/ErrorBody' } } } } } }
     CurrentUser: { description: Current user profile, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/User' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
@@ -889,7 +1070,47 @@ components:
     RouteCandidates: { description: Route candidates, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/RouteCandidate' } }, meta: { $ref: '#/components/schemas/RouteCandidatesMeta' } } } } } }
     Presence: { description: Presence, content: { application/json: { schema: { type: object } } } }
     PresenceList: { description: Presence list, content: { application/json: { schema: { type: object } } } }
-    OfflinePackList: { description: Eligible offline packs, content: { application/json: { schema: { type: object } } } }
-    DownloadIntent: { description: Scoped download intent, content: { application/json: { schema: { type: object } } } }
+    OfflinePackList:
+      description: Eligible offline packs catalog and envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, meta]
+            properties:
+              data:
+                type: array
+                items: { $ref: '#/components/schemas/OfflinePackSummary' }
+              meta: { $ref: '#/components/schemas/Meta' }
+    OfflinePackManifestResponse:
+      description: Offline pack manifest and envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, meta]
+            properties:
+              data: { $ref: '#/components/schemas/OfflinePackManifest' }
+              meta: { $ref: '#/components/schemas/Meta' }
+    DownloadIntentResponse:
+      description: Scoped fixture download intent and envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, meta]
+            properties:
+              data: { $ref: '#/components/schemas/DownloadIntent' }
+              meta: { $ref: '#/components/schemas/Meta' }
+    PackReceiptResponse:
+      description: Recorded offline pack receipt telemetry and envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, meta]
+            properties:
+              data: { $ref: '#/components/schemas/OfflinePackReceipt' }
+              meta: { $ref: '#/components/schemas/Meta' }
     SafetyIncident: { description: Safety incident, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/SafetyIncident' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     EffectiveConfiguration: { description: Effective safe configuration, content: { application/json: { schema: { type: object } } } }
