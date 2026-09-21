@@ -396,17 +396,29 @@ paths:
     parameters: [{ $ref: '#/components/parameters/RideId' }]
     get:
       operationId: listRidePresence
+      summary: List current authorized group rider presence projections
+      description: Returns current presence projections for active members of the ride's group. Active presence requires active ride, active group membership, active device session, and active location_sharing consent. Expired presence is projected as stale with location omitted. Stopped presence has location omitted immediately. Returns only the current projection; no historical presence is retained or scraped.
       responses:
         '200': { $ref: '#/components/responses/PresenceList' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
     post:
       operationId: upsertRidePresence
+      summary: Ingest client presence update for active ride
+      description: Ingests single current presence projection for authenticated rider. Requires active ride, active group membership, active device session, and active location_sharing consent. Stopped presence immediately removes current location. Stale or out-of-order clientSequence is rejected with 409 Conflict. TTL is capped to permitted range. No historical location or breadcrumbs are stored.
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/PresenceCommand' } } }
       responses:
         '200': { $ref: '#/components/responses/Presence' }
+        '401': { $ref: '#/components/responses/ApiError' }
         '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
   /offline-packs:
     get:
       operationId: listOfflinePacks
@@ -791,22 +803,30 @@ components:
         generatedAt: { $ref: '#/components/schemas/UtcInstant' }
     PresenceCommand:
       type: object
-      required: [state]
+      required: [state, deviceObservedAt, clientSequence, ttlSeconds]
       properties:
         state: { enum: [active, stopped] }
+        deviceObservedAt: { $ref: '#/components/schemas/UtcInstant' }
+        clientSequence: { type: integer, minimum: 1 }
+        ttlSeconds: { type: integer, minimum: 5, maximum: 300, default: 60 }
         location: { $ref: '#/components/schemas/GeoPoint' }
         headingDegrees: { type: number, minimum: 0, maximum: 360 }
+        accuracyMeters: { type: number, minimum: 0 }
     Presence:
       type: object
-      required: [rideId, userId, state, observedAt, expiresAt, evidence]
+      required: [rideId, userId, state, deviceObservedAt, serverReceivedAt, expiresAt, clientSequence]
       properties:
         rideId: { $ref: '#/components/schemas/OpaqueId' }
         userId: { $ref: '#/components/schemas/OpaqueId' }
+        displayName: { type: string }
         state: { enum: [active, stale, stopped] }
-        observedAt: { $ref: '#/components/schemas/UtcInstant' }
+        deviceObservedAt: { $ref: '#/components/schemas/UtcInstant' }
+        serverReceivedAt: { $ref: '#/components/schemas/UtcInstant' }
         expiresAt: { $ref: '#/components/schemas/UtcInstant' }
+        clientSequence: { type: integer }
         location: { $ref: '#/components/schemas/GeoPoint' }
-        evidence: { enum: [device_reported, server_relayed] }
+        headingDegrees: { type: number, minimum: 0, maximum: 360 }
+        accuracyMeters: { type: number, minimum: 0 }
     ActivateSafetyIncidentCommand:
       type: object
       required: [activationMethod]
@@ -1073,9 +1093,28 @@ components:
     GeoDatasetResponse: { description: Geo dataset data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GeoDataset' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     GraphVersionResponse: { description: Graph version data and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/GraphVersion' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
     QuarantineListResponse: { description: Quarantined records list and envelope, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/QuarantineRecord' } }, meta: { $ref: '#/components/schemas/Meta' } } } } } }
-    RouteCandidates: { description: Route candidates, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: '#/components/schemas/RouteCandidate' } }, meta: { $ref: '#/components/schemas/RouteCandidatesMeta' } } } } } }
-    Presence: { description: Presence, content: { application/json: { schema: { type: object } } } }
-    PresenceList: { description: Presence list, content: { application/json: { schema: { type: object } } } }
+    Presence:
+      description: Current rider presence projection
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, meta]
+            properties:
+              data: { $ref: '#/components/schemas/Presence' }
+              meta: { $ref: '#/components/schemas/Meta' }
+    PresenceList:
+      description: Current group ride presence projections
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, meta]
+            properties:
+              data:
+                type: array
+                items: { $ref: '#/components/schemas/Presence' }
+              meta: { $ref: '#/components/schemas/Meta' }
     OfflinePackList:
       description: Eligible offline packs catalog and envelope
       content:

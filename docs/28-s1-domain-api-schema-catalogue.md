@@ -364,15 +364,30 @@ type OfflinePackReceipt = {
 ## 6. Presence, location, and sync
 
 ```ts
+type PresenceState = 'active' | 'stale' | 'stopped';
+
+type PresenceCommand = {
+  state: 'active' | 'stopped';
+  deviceObservedAt: UtcInstant;
+  clientSequence: number;
+  ttlSeconds: number; // bounded (5-300s, default 60s); capped by server
+  location?: GeoPoint;
+  headingDegrees?: number;
+  accuracyMeters?: number;
+};
+
 type Presence = {
   rideId: string;
   userId: string;
-  state: 'active' | 'stale' | 'stopped';
-  observedAt: UtcInstant;
+  displayName?: string;
+  state: PresenceState;
+  deviceObservedAt: UtcInstant;
+  serverReceivedAt: UtcInstant;
   expiresAt: UtcInstant;
-  location?: GeoPoint; // only when viewer policy permits
+  clientSequence: number;
+  location?: GeoPoint; // strictly omitted when state is stale or stopped
   headingDegrees?: number;
-  evidence: 'device_reported' | 'server_relayed';
+  accuracyMeters?: number;
 };
 
 type SyncOperation = {
@@ -386,8 +401,8 @@ type SyncOperation = {
 
 | Method | Path | Purpose | Key rules |
 |---|---|---|---|
-| `POST` | `/v1/rides/{rideId}/presence` | begin/update/stop presence | membership + explicit sharing scope/consent; TTL required |
-| `GET` | `/v1/rides/{rideId}/presence` | current group projection | membership only; stale marker; no historical scrape |
+| `POST` | `/v1/rides/{rideId}/presence` | begin/update/stop presence | active presence requires active ride, active group membership, active device session, and active location_sharing consent; stopped clears location immediately; rejects stale/out-of-order clientSequence (409 Conflict); bounded TTL; single current projection stored, zero breadcrumbs/history table |
+| `GET` | `/v1/rides/{rideId}/presence` | current group projection | active group members only; expired presence returns as stale with location omitted; stopped presence returns with location omitted; current projection only, no historical presence endpoint |
 | `POST` | `/v1/sync/operations` | submit supported queued commands | operation + command idempotency; return reconciliation state |
 | `GET` | `/v1/sync` | cursor-based scoped changes | opaque cursor; tombstones/minimal instruction after revocation |
 
