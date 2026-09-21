@@ -458,36 +458,68 @@ type SyncOperation = {
    - Delivery does not write location history, trail breadcrumbs, or durable tracking records.
    - No multi-node broker, external message queue, or SMS/mesh fallback is assumed or required for S8B.
 
-## 7. Community, chat, and media
+## 7. Community feed and moderation foundation (S9A)
 
 ```ts
-type MediaAsset = {
+type PostState = 'published' | 'restricted';
+
+type Post = {
   id: string;
-  state: 'uploading' | 'quarantined' | 'processing' | 'published' | 'rejected' | 'deleted';
-  mediaType: 'image' | 'video';
-  visibility: 'private' | 'group' | 'community';
+  groupId: string;
+  authorUserId: string;
+  authorDisplayName: string;
+  content: string; // text-only, 1-2000 chars
+  state: PostState;
+  version: number;
   createdAt: UtcInstant;
+  updatedAt: UtcInstant;
 };
 
-type ChatMessage = {
+type PostReportState = 'pending' | 'reviewed' | 'dismissed';
+
+type PostReport = {
   id: string;
-  threadId: string;
-  senderId: string;
-  body?: string;
-  mediaIds: string[];
-  state: 'sent' | 'moderated' | 'deleted';
+  postId: string;
+  reason: string;
+  details?: string;
+  state: PostReportState;
   createdAt: UtcInstant;
+  // reporterUserId is strictly hidden and never projected in responses or feed
+};
+
+type ModerationAction = 'restrict' | 'restore';
+
+type PostModerationDecision = {
+  id: string;
+  postId: string;
+  moderatorUserId: string;
+  action: ModerationAction;
+  resultingState: PostState;
+  reason: string;
+  decidedAt: UtcInstant;
 };
 ```
 
 | Method | Path | Purpose | Key rules |
 |---|---|---|---|
-| `GET/POST` | `/v1/feed` | retrieve/create community post | default no precise location; visibility/moderation policy |
-| `POST` | `/v1/media/upload-intents` | create upload intent | file/size/type validation; quarantine destination |
-| `POST` | `/v1/media/{mediaId}/complete` | submit uploaded asset for processing | idempotency; server checks intended object/integrity |
-| `POST` | `/v1/media/{mediaId}/reports` | report content | protected reporter identity; moderation audit |
-| `GET/POST` | `/v1/chat-threads/{threadId}/messages` | list/send message | membership policy; idempotent sends |
-| `POST` | `/v1/posts/{postId}/reports` | report post | no exposed reporter identity |
+| `GET` | `/v1/feed?groupId={groupId}&cursor={cursor}&limit={limit}` | retrieve paginated group feed | Active group membership required; reverse-chronological opaque cursor pagination; restricted posts strictly excluded. |
+| `POST` | `/v1/feed` | publish text-only post | Active group membership required; Idempotency-Key required; strictly text-only (zero location, coordinates, or media attachments); emits `post.published.v1`. |
+| `POST` | `/v1/posts/{postId}/reports` | report a post | Active group membership required; reports do not alter post visibility; reporter identity is protected and never returned; emits `post.reported.v1`. |
+| `POST` | `/v1/posts/{postId}/moderation-decisions` | record owner moderation decision | Group owner only (403 for others); transitions `published` <-> `restricted`; appends immutable decision; emits `post.moderated.v1`. |
+
+### S9A Feed & Moderation Invariants
+
+1. **Active Private-Group Scoping:** Feed reads, post publication, and reporting are restricted to callers with active membership in the post's group (`groupId`). Non-members or removed members receive HTTP 403 Forbidden.
+2. **Text-Only Content:** Post content is bounded text (1–2000 UTF-8 characters). Schema, DTOs, responses, and audit tables have zero location coordinates, GPS fields, media IDs, upload intents, comments, or reactions.
+3. **Opaque Keyset Cursor Pagination:** `GET /v1/feed` orders by `(created_at DESC, id DESC)`. The `cursor` query param is an opaque base64 token encoding the boundary `(createdAt, id)`. Returns `nextCursor` if additional records exist.
+4. **Reporter Privacy:** When a member reports a post, the `reporterUserId` is stored internally for safety audit and abuse tracking, but **must NEVER appear in feed, post projections, or the report response payload**.
+5. **No Auto-Moderation on Report:** Reporting a post creates a `pending` report record but does not automatically restrict or hide the post.
+6. **Group-Owner Moderation:** Only the verified group owner (`group.ownerId == caller.userId`) can restrict or restore posts. Other members (including admins/officers) receive HTTP 403 Forbidden.
+7. **State Machine & Append-Only Audit:**
+   - `published` -> `restricted` (action: `restrict`)
+   - `restricted` -> `published` (action: `restore`)
+   - Every moderation decision is appended to immutable `post_moderation_decisions` (no updates or deletes allowed).
+8. **Transactional Outbox:** Post creation, reporting, and moderation atomically commit their respective outbox events (`post.published.v1`, `post.reported.v1`, `post.moderated.v1`) within the primary transaction.
 
 ## 8. Safety incidents and channel attempts
 

@@ -521,6 +521,139 @@ paths:
       operationId: getEffectiveConfiguration
       responses:
         '200': { $ref: '#/components/responses/EffectiveConfiguration' }
+  /feed:
+    get:
+      operationId: getGroupFeed
+      summary: Retrieve paginated posts for an active private group
+      description: Returns a reverse-chronological list of published posts scoped to a specific group. Caller must have an active membership in the group. Restricted posts are excluded.
+      parameters:
+        - name: groupId
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/OpaqueId'
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor returned from previous page.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Paginated group feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResponse'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
+    post:
+      operationId: createGroupPost
+      summary: Create a text-only post in a private group
+      description: Publishes a text-only post into a private group. Caller must be an active member of the group. Strictly zero location data, coordinates, or media assets.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostCommand'
+      responses:
+        '201':
+          description: Post successfully published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
+        '409':
+          $ref: '#/components/responses/ApiError'
+  /posts/{postId}/reports:
+    parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/OpaqueId'
+    post:
+      operationId: reportPost
+      summary: Report a post for moderation review
+      description: Submits a report for a post. Caller must be an active member of the post's group. Reporting does not alter post visibility automatically. Reporter identity is never exposed in feed or post projections.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportCommand'
+      responses:
+        '201':
+          description: Report recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
+  /posts/{postId}/moderation-decisions:
+    parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/OpaqueId'
+    post:
+      operationId: moderatePost
+      summary: Record an owner moderation decision on a post
+      description: Restricts or restores a post. Caller must be the owner of the group containing the post. Transitions post between published and restricted states. Appends an immutable moderation decision record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModerationDecisionCommand'
+      responses:
+        '200':
+          description: Moderation decision applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationDecisionResponse'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -1112,6 +1245,126 @@ components:
         failureReasonCode: { type: string }
         recordedAt: { $ref: '#/components/schemas/UtcInstant' }
         evidenceDeclaration: { type: string, enum: [client_reported_telemetry] }
+    Post:
+      type: object
+      required: [id, groupId, authorUserId, authorDisplayName, content, state, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
+        authorUserId: { $ref: '#/components/schemas/OpaqueId' }
+        authorDisplayName: { type: string, minLength: 1, maxLength: 100 }
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Strictly text-only content without location or media attachments.
+        state:
+          type: string
+          enum: [published, restricted]
+        version: { type: integer, minimum: 1 }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    CreatePostCommand:
+      type: object
+      required: [groupId, content]
+      properties:
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Text-only body of the post.
+    PostReport:
+      type: object
+      required: [id, postId, reason, state, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        postId: { $ref: '#/components/schemas/OpaqueId' }
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 64
+        details:
+          type: string
+          maxLength: 1000
+          nullable: true
+        state:
+          type: string
+          enum: [pending, reviewed, dismissed]
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+    CreateReportCommand:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 64
+        details:
+          type: string
+          maxLength: 1000
+    PostModerationDecision:
+      type: object
+      required: [id, postId, moderatorUserId, action, resultingState, reason, decidedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        postId: { $ref: '#/components/schemas/OpaqueId' }
+        moderatorUserId: { $ref: '#/components/schemas/OpaqueId' }
+        action:
+          type: string
+          enum: [restrict, restore]
+        resultingState:
+          type: string
+          enum: [published, restricted]
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        decidedAt: { $ref: '#/components/schemas/UtcInstant' }
+    CreateModerationDecisionCommand:
+      type: object
+      required: [action, reason]
+      properties:
+        action:
+          type: string
+          enum: [restrict, restore]
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    FeedResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items, nextCursor]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Post' }
+            nextCursor:
+              type: string
+              nullable: true
+        meta: { $ref: '#/components/schemas/Meta' }
+    PostResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/Post' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ReportResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/PostReport' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ModerationDecisionResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/PostModerationDecision' }
+        meta: { $ref: '#/components/schemas/Meta' }
   responses:
     ApiError: { description: Safe API error, content: { application/json: { schema: { type: object, required: [error], properties: { error: { $ref: '#/components/schemas/ErrorBody' } } } } } }
     CurrentUser: { description: Current user profile, content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { $ref: '#/components/schemas/User' }, meta: { $ref: '#/components/schemas/Meta' } } } } } }

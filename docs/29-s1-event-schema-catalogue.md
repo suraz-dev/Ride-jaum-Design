@@ -46,11 +46,32 @@
 | `pack.verified.v1` | internal | pack ID, manifest/graph/config version, verification outcome | pack analytics, support audit |
 | `presence.updated.v1` | protected | ride/member ref, TTL, observation time, coarse state | authorized realtime projection only |
 | `group.presence.changed.v1` | protected | ride ID, member ID, projection state, observation time, client sequence, optional coordinates/telemetry | authorized realtime group subscribers (ephemeral delivery only) |
-| `post.published.v1` / `media.quarantined.v1` | protected | content/media ref, visibility, moderation state | feed/moderation workflow |
+| `post.published.v1` | protected | postId, groupId, authorUserId, content, state, createdAt | group feed projection, audit |
+| `post.reported.v1` | protected | reportId, postId, groupId, reason, createdAt | moderation queue, audit (reporter ID protected) |
+| `post.moderated.v1` | protected | decisionId, postId, groupId, moderatorUserId, action, resultingState, reason, decidedAt | feed update, audit |
 | `incident.activated.v1` | safety | incident ID, server acceptance time, capability snapshot ref | safety ledger, dedicated channel workers, audit |
 | `channel.attempt_recorded.v1` | safety | incident ID, attempt ID, channel, evidence state, failure class | incident projection, safety audit |
 | `incident.acknowledged.v1` | safety | incident ID, acknowledgement ID, actor/evidence time | safety ledger and UI projection |
 | `country_profile.activated.v1` | internal | country code, config version, effective time | config cache, capability revalidation |
+
+## S9A Community Feed & Moderation Durable Events
+
+Durable events emitted via the transactional outbox (`outbox_events` table) upon feed mutations:
+
+1. **`post.published.v1`**:
+   - Emitted when an active group member publishes a text-only post into a private group.
+   - Payload: `{ postId, groupId, authorUserId, content, state: "published", createdAt }`.
+   - Invariant: Strictly zero location or media references.
+
+2. **`post.reported.v1`**:
+   - Emitted when an active member submits a report on a post.
+   - Payload: `{ reportId, postId, groupId, reason, createdAt }`.
+   - Invariant: Does not alter post visibility; reporter identity is protected and never leaked in feed projections.
+
+3. **`post.moderated.v1`**:
+   - Emitted when a group owner restricts (`published` -> `restricted`) or restores (`restricted` -> `published`) a post.
+   - Payload: `{ decisionId, postId, groupId, moderatorUserId, action, resultingState, reason, decidedAt }`.
+   - Invariant: Appended to immutable decision audit table; immediate visibility adjustment in feed.
 
 ## Realtime Presence Event Constraint
 
