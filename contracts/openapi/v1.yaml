@@ -419,6 +419,18 @@ paths:
         '404': { $ref: '#/components/responses/ApiError' }
         '409': { $ref: '#/components/responses/ApiError' }
         '422': { $ref: '#/components/responses/ApiError' }
+  /rides/{rideId}/presence/subscription-authorizations:
+    parameters: [{ $ref: '#/components/parameters/RideId' }]
+    post:
+      operationId: createPresenceSubscriptionAuth
+      summary: Acquire short-lived subscription authorization for realtime presence
+      description: Issues a short-lived opaque authorization token for subscribing to realtime presence delivery via STOMP WebSocket. Bound to the authenticated user, active device session, active ride, active group membership, and active location_sharing consent.
+      responses:
+        '200': { $ref: '#/components/responses/PresenceSubscriptionAuthResponse' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
   /offline-packs:
     get:
       operationId: listOfflinePacks
@@ -827,6 +839,30 @@ components:
         location: { $ref: '#/components/schemas/GeoPoint' }
         headingDegrees: { type: number, minimum: 0, maximum: 360 }
         accuracyMeters: { type: number, minimum: 0 }
+    PresenceSubscriptionAuth:
+      type: object
+      required: [subscriptionToken, expiresAt, channel, destination, ttlSeconds]
+      properties:
+        subscriptionToken:
+          type: string
+          description: Short-lived opaque subscription token bound to rider session and ride
+          example: prsub_8f7b2c9a1e3d4f5g
+        expiresAt:
+          type: string
+          format: date-time
+          description: UTC expiration timestamp after which the token is invalid
+        channel:
+          type: string
+          description: Logical channel identifier
+          example: ride:4c73598b-1634-456d-a345-64d301c4ed5e:presence
+        destination:
+          type: string
+          description: Private user-scoped STOMP destination for subscription
+          example: /user/queue/ride:4c73598b-1634-456d-a345-64d301c4ed5e:presence
+        ttlSeconds:
+          type: integer
+          description: Token validity window in seconds
+          example: 300
     ActivateSafetyIncidentCommand:
       type: object
       required: [activationMethod]
@@ -1114,6 +1150,16 @@ components:
               data:
                 type: array
                 items: { $ref: '#/components/schemas/Presence' }
+              meta: { $ref: '#/components/schemas/Meta' }
+    PresenceSubscriptionAuthResponse:
+      description: Realtime presence subscription authorization token
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, meta]
+            properties:
+              data: { $ref: '#/components/schemas/PresenceSubscriptionAuth' }
               meta: { $ref: '#/components/schemas/Meta' }
     OfflinePackList:
       description: Eligible offline packs catalog and envelope

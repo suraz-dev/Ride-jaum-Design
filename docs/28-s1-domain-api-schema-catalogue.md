@@ -390,6 +390,22 @@ type Presence = {
   accuracyMeters?: number;
 };
 
+type PresenceSubscriptionAuth = {
+  subscriptionToken: string;
+  expiresAt: UtcInstant;
+  channel: string; // "ride:{rideId}:presence"
+  destination: string; // "/user/queue/ride:{rideId}:presence"
+  ttlSeconds: number; // short-lived (e.g. 300s)
+};
+
+type GroupPresenceChangedEvent = {
+  eventId: string;
+  eventType: 'group.presence.changed.v1';
+  occurredAt: UtcInstant;
+  rideId: string;
+  presence: Presence;
+};
+
 type SyncOperation = {
   id: string;
   clientOperationId: string;
@@ -403,10 +419,36 @@ type SyncOperation = {
 |---|---|---|---|
 | `POST` | `/v1/rides/{rideId}/presence` | begin/update/stop presence | active presence requires active ride, active group membership, active device session, and active location_sharing consent; stopped clears location immediately; rejects stale/out-of-order clientSequence (409 Conflict); bounded TTL; single current projection stored, zero breadcrumbs/history table |
 | `GET` | `/v1/rides/{rideId}/presence` | current group projection | active group members only; expired presence returns as stale with location omitted; stopped presence returns with location omitted; current projection only, no historical presence endpoint |
+| `POST` | `/v1/rides/{rideId}/presence/subscription-authorizations` | acquire short-lived subscription token | requires active ride, active group membership, active device session, and active location_sharing consent; returns short-lived token (300s) bound to caller and ride for STOMP WebSocket subscription |
 | `POST` | `/v1/sync/operations` | submit supported queued commands | operation + command idempotency; return reconciliation state |
 | `GET` | `/v1/sync` | cursor-based scoped changes | opaque cursor; tombstones/minimal instruction after revocation |
 
-Transport-level WebSocket subscriptions mirror authorized projections and use short-lived subscription authorization. They never bypass the REST policy check or replace durable reconciliation.
+### Realtime Presence Delivery Specification (S8B)
+
+1. **Protocol & Endpoint:**
+   - Protocol: STOMP 1.2 over WebSocket at `/v1/ws`.
+   - Security: Handshake via HTTP Upgrade. Tokens must **never be passed in URL query parameters** or logged.
+   - Session Authentication: Provided in STOMP `CONNECT` frame headers (`Authorization: Bearer <sessionToken>`).
+2. **Channel & Subscription Destination:**
+   - Channel Name: `ride:{rideId}:presence`.
+   - STOMP Destination: Private user-scoped queue `/user/queue/ride:{rideId}:presence`.
+   - Globally broadcast ride topics (e.g. `/topic/ride:...`) are strictly prohibited to prevent unauthorized eavesdropping.
+3. **Subscription Lifecycle & Authorization Flow:**
+   - Step 1: Rider requests short-lived authorization token via `POST /v1/rides/{rideId}/presence/subscription-authorizations`.
+   - Step 2: In STOMP `SUBSCRIBE` frame to `/user/queue/ride:{rideId}:presence`, subscriber provides `subscription-token: <subscriptionToken>` in headers.
+   - Step 3: Gateway validates token validity, expiration, and ensures user ID, device session, ride ID, active group membership, and active `location_sharing` consent match.
+   - Step 4: Before every fan-out delivery, the gateway re-evaluates current membership, session revocation, and consent status.
+4. **Heartbeat, Reconnect, Expiry, and Revocation Rules:**
+   - Heartbeats: Bidirectional 10,000ms heartbeat interval configured in STOMP broker.
+   - Expiry: Subscription token expires after `ttlSeconds` (default 300s). Following expiry, delivery terminates and subscriber must re-authorize.
+   - Fail-Closed Revocation: On session revocation, membership departure, or consent withdrawal, delivery terminates immediately and peer views project the user as `stopped` with coordinates stripped.
+   - Reconnect Backoff: Clients implement jittered exponential backoff (1s, 2s, 4s... max 30s). Reconnect requires acquiring a fresh subscription token and calling REST `GET /v1/rides/{rideId}/presence` for full baseline reconciliation.
+   - Quotas: Maximum 3 active presence subscriptions per device session. Maximum inbound frame payload size 64 KB.
+   - Slow-Client Isolation: If client outbound buffer exceeds 256 KB or consumer drops behind, gateway closes session with STOMP error frame to protect server thread pool.
+5. **Truth and Non-Authoritative Invariant:**
+   - WebSocket delivery is purely an ephemeral fan-out assist and **never replaces GET presence reconciliation**.
+   - Delivery does not write location history, trail breadcrumbs, or durable tracking records.
+   - No multi-node broker, external message queue, or SMS/mesh fallback is assumed or required for S8B.
 
 ## 7. Community, chat, and media
 

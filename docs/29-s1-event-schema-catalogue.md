@@ -45,11 +45,19 @@
 | `graph.published.v1` | internal | graph version, coverage ref, source/attribution refs | route service, pack catalogue |
 | `pack.verified.v1` | internal | pack ID, manifest/graph/config version, verification outcome | pack analytics, support audit |
 | `presence.updated.v1` | protected | ride/member ref, TTL, observation time, coarse state | authorized realtime projection only |
+| `group.presence.changed.v1` | protected | ride ID, member ID, projection state, observation time, client sequence, optional coordinates/telemetry | authorized realtime group subscribers (ephemeral delivery only) |
 | `post.published.v1` / `media.quarantined.v1` | protected | content/media ref, visibility, moderation state | feed/moderation workflow |
 | `incident.activated.v1` | safety | incident ID, server acceptance time, capability snapshot ref | safety ledger, dedicated channel workers, audit |
 | `channel.attempt_recorded.v1` | safety | incident ID, attempt ID, channel, evidence state, failure class | incident projection, safety audit |
 | `incident.acknowledged.v1` | safety | incident ID, acknowledgement ID, actor/evidence time | safety ledger and UI projection |
 | `country_profile.activated.v1` | internal | country code, config version, effective time | config cache, capability revalidation |
+
+## Realtime Presence Event Constraint
+
+`group.presence.changed.v1` is an **ephemeral fan-out event** delivered exclusively over authorized, user-scoped WebSocket channels (`/user/queue/ride:{rideId}:presence`). It mirrors the server-authoritative REST `Presence` projection.
+- WebSocket delivery is best-effort and **never replaces GET `/v1/rides/{rideId}/presence` reconciliation**. Following connection drop, reconnect, or sequence gap, clients must reconcile state via REST GET.
+- WebSocket delivery never writes location history, trail breadcrumbs, or durable tracking records.
+- Stale, stopped, or consent/session-revoked projections must never carry coordinates, heading, or accuracy in event payloads.
 
 ## Safety event constraint
 
