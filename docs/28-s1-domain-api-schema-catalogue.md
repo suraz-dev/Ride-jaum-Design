@@ -504,8 +504,8 @@ type PostModerationDecision = {
 |---|---|---|---|
 | `GET` | `/v1/feed?groupId={groupId}&cursor={cursor}&limit={limit}` | retrieve paginated group feed | Active group membership required; reverse-chronological opaque cursor pagination; restricted posts strictly excluded. |
 | `POST` | `/v1/feed` | publish text-only post | Active group membership required; Idempotency-Key required; strictly text-only (zero location, coordinates, or media attachments); emits `post.published.v1`. |
-| `POST` | `/v1/posts/{postId}/reports` | report a post | Active group membership required; reports do not alter post visibility; reporter identity is protected and never returned; emits `post.reported.v1`. |
-| `POST` | `/v1/posts/{postId}/moderation-decisions` | record owner moderation decision | Group owner only (403 for others); transitions `published` <-> `restricted`; appends immutable decision; emits `post.moderated.v1`. |
+| `POST` | `/v1/posts/{postId}/reports` | report a post | Active group membership required; Idempotency-Key required; reports do not alter post visibility; reporter identity is protected and never returned; emits `post.reported.v1`. |
+| `POST` | `/v1/posts/{postId}/moderation-decisions` | record owner moderation decision | Group owner only (403 for others); Idempotency-Key required; transitions `published` <-> `restricted`; appends immutable decision; emits `post.moderated.v1`. |
 
 ### S9A Feed & Moderation Invariants
 

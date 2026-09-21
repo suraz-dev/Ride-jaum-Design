@@ -601,6 +601,8 @@ paths:
       operationId: reportPost
       summary: Report a post for moderation review
       description: Submits a report for a post. Caller must be an active member of the post's group. Reporting does not alter post visibility automatically. Reporter identity is never exposed in feed or post projections.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -622,6 +624,8 @@ paths:
           $ref: '#/components/responses/ApiError'
         '404':
           $ref: '#/components/responses/ApiError'
+        '409':
+          $ref: '#/components/responses/ApiError'
   /posts/{postId}/moderation-decisions:
     parameters:
       - name: postId
@@ -633,6 +637,8 @@ paths:
       operationId: moderatePost
       summary: Record an owner moderation decision on a post
       description: Restricts or restores a post. Caller must be the owner of the group containing the post. Transitions post between published and restricted states. Appends an immutable moderation decision record.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -653,6 +659,10 @@ paths:
         '403':
           $ref: '#/components/responses/ApiError'
         '404':
+          $ref: '#/components/responses/ApiError'
+        '409':
+          $ref: '#/components/responses/ApiError'
+        '422':
           $ref: '#/components/responses/ApiError'
 components:
   securitySchemes:
