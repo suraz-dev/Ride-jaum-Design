@@ -429,6 +429,7 @@ type SyncOperation = {
    - Protocol: STOMP 1.2 over WebSocket at `/v1/ws`.
    - Security: Handshake via HTTP Upgrade. Tokens must **never be passed in URL query parameters** or logged.
    - Session Authentication: Provided in STOMP `CONNECT` frame headers (`Authorization: Bearer <sessionToken>`).
+   - Browser Origin Restrictions: Handshake enforces configuration-backed allowed origins (`ridejaunm.websocket.allowed-origins`, e.g. local dev defaults `http://localhost:3000`, `http://localhost:8080`, `http://127.0.0.1:3000`, `http://127.0.0.1:8080`). Unlisted browser origins fail closed with HTTP 403 Forbidden. Native mobile clients sending no browser `Origin` header are preserved.
 2. **Channel & Subscription Destination:**
    - Channel Name: `ride:{rideId}:presence`.
    - STOMP Destination: Private user-scoped queue `/user/queue/ride:{rideId}:presence`.
@@ -436,14 +437,21 @@ type SyncOperation = {
 3. **Subscription Lifecycle & Authorization Flow:**
    - Step 1: Rider requests short-lived authorization token via `POST /v1/rides/{rideId}/presence/subscription-authorizations`.
    - Step 2: In STOMP `SUBSCRIBE` frame to `/user/queue/ride:{rideId}:presence`, subscriber provides `subscription-token: <subscriptionToken>` in headers.
-   - Step 3: Gateway validates token validity, expiration, and ensures user ID, device session, ride ID, active group membership, and active `location_sharing` consent match.
-   - Step 4: Before every fan-out delivery, the gateway re-evaluates current membership, session revocation, and consent status.
+   - Step 3: Gateway atomically validates and consumes the single-use token. Re-using a consumed token or mismatched `userId`, `deviceSessionId`, or `rideId` is rejected with `AccessDeniedException`.
+   - Step 4: Gateway maintains an active authorization context keyed by STOMP connection session ID and subscription ID (`SubscriptionKey`).
+   - Step 5: Before each outgoing presence `MESSAGE`, the gateway strictly re-evaluates:
+     - Ticket validity window (unexpired `expiresAt`),
+     - Active device session in DB (`state == 'active'`),
+     - Active group membership in DB (`state == 'active'`),
+     - Active `location_sharing` consent in DB (`state == 'granted'`),
+     - Matching authorized ride ID and destination.
+     If any check fails, payload delivery is suppressed (`return null`), authorization state is purged, and the subscription/session is revoked with a STOMP ERROR frame.
 4. **Heartbeat, Reconnect, Expiry, and Revocation Rules:**
    - Heartbeats: Bidirectional 10,000ms heartbeat interval configured in STOMP broker.
-   - Expiry: Subscription token expires after `ttlSeconds` (default 300s). Following expiry, delivery terminates and subscriber must re-authorize.
+   - Expiry: Subscription authorization expires after `ttlSeconds` (default 300s). Following expiry, outgoing delivery terminates immediately and subscriber must re-authorize.
    - Fail-Closed Revocation: On session revocation, membership departure, or consent withdrawal, delivery terminates immediately and peer views project the user as `stopped` with coordinates stripped.
-   - Reconnect Backoff: Clients implement jittered exponential backoff (1s, 2s, 4s... max 30s). Reconnect requires acquiring a fresh subscription token and calling REST `GET /v1/rides/{rideId}/presence` for full baseline reconciliation.
-   - Quotas: Maximum 3 active presence subscriptions per device session. Maximum inbound frame payload size 64 KB.
+   - Reconnect Backoff: Clients implement jittered exponential backoff (1s, 2s, 4s... max 30s). Reconnect requires acquiring a fresh single-use subscription token and calling REST `GET /v1/rides/{rideId}/presence` for full baseline reconciliation.
+   - Quotas per Device Session: Maximum 3 active presence subscriptions per authenticated `deviceSessionId` collectively enforced across all concurrent connections. Quota counters are cleaned on unsubscribe, disconnect, token expiry, and revocation. Maximum inbound frame payload size 64 KB.
    - Slow-Client Isolation: If client outbound buffer exceeds 256 KB or consumer drops behind, gateway closes session with STOMP error frame to protect server thread pool.
 5. **Truth and Non-Authoritative Invariant:**
    - WebSocket delivery is purely an ephemeral fan-out assist and **never replaces GET presence reconciliation**.

@@ -424,7 +424,7 @@ paths:
     post:
       operationId: createPresenceSubscriptionAuth
       summary: Acquire short-lived subscription authorization for realtime presence
-      description: Issues a short-lived opaque authorization token for subscribing to realtime presence delivery via STOMP WebSocket. Bound to the authenticated user, active device session, active ride, active group membership, and active location_sharing consent.
+      description: Issues a single-use short-lived opaque authorization token for subscribing to realtime presence delivery via STOMP WebSocket. Atomically consumed and validated upon SUBSCRIBE. Strictly bound to the authenticated user, active device session, active ride, active group membership, and active location_sharing consent.
       responses:
         '200': { $ref: '#/components/responses/PresenceSubscriptionAuthResponse' }
         '401': { $ref: '#/components/responses/ApiError' }
@@ -845,7 +845,7 @@ components:
       properties:
         subscriptionToken:
           type: string
-          description: Short-lived opaque subscription token bound to rider session and ride
+          description: Single-use short-lived opaque subscription token bound to rider, device session, and ride. Atomically consumed upon STOMP SUBSCRIBE.
           example: prsub_8f7b2c9a1e3d4f5g
         expiresAt:
           type: string
