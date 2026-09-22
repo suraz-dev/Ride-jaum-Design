@@ -51,6 +51,7 @@
 | `post.moderated.v1` | protected | decisionId, postId, groupId, moderatorUserId, action, resultingState, reason, decidedAt | feed update, audit |
 | `message.queued.v1` | protected | messageId, threadId, groupId, senderUserId, state, serverReceivedAt, clientCreatedAt | group chat projection, audit (body protected) |
 | `incident.activated.v1` | safety | incident ID, server acceptance time, capability snapshot ref | safety ledger, dedicated channel workers, audit |
+| `incident.stand_down_requested.v1` | safety | incident ID, user ID, reasonCode, requestedAt | safety ledger, stand-down audit |
 | `channel.attempt_recorded.v1` | safety | incident ID, attempt ID, channel, evidence state, failure class | incident projection, safety audit |
 | `incident.acknowledged.v1` | safety | incident ID, acknowledgement ID, actor/evidence time | safety ledger and UI projection |
 | `country_profile.activated.v1` | internal | country code, config version, effective time | config cache, capability revalidation |
@@ -65,31 +66,31 @@ Durable events emitted via the transactional outbox (`outbox_events` table) upon
    - Invariant: Strictly zero location or media references.
 
 2. **`post.reported.v1`**:
-   - Emitted when an active member submits a report on a post.
+   - Emitted when an active group member reports a post.
+   - Classification: `protected`.
    - Payload: `{ reportId, postId, groupId, reason, createdAt }`.
-   - Invariant: Does not alter post visibility; reporter identity is protected and never leaked in feed projections.
+   - Invariant: Reporter user identity is protected and strictly excluded from the outbox payload.
 
 3. **`post.moderated.v1`**:
-   - Emitted when a group owner restricts (`published` -> `restricted`) or restores (`restricted` -> `published`) a post.
+   - Emitted when a group owner/moderator records a restrict or restore decision.
+   - Classification: `protected`.
    - Payload: `{ decisionId, postId, groupId, moderatorUserId, action, resultingState, reason, decidedAt }`.
-   - Invariant: Appended to immutable decision audit table; immediate visibility adjustment in feed.
+   - Invariants:
+     - Allowed actions: strictly `restrict` or `restore`.
+     - Resulting state transitions strictly: `published -> restricted` or `restricted -> published`.
 
-## S9B Private Group Chat Durable Events
-
-Durable events emitted via the transactional outbox (`outbox_events` table) upon chat message acceptance:
+## S9B Group Chat & Queued Message Durable Events
 
 1. **`message.queued.v1`**:
-   - Emitted atomically when a text-only chat message is accepted by the server into a private group chat thread.
-   - Aggregate Type: `chat_message`
-   - Aggregate Version: `1`
-   - Classification: `protected`
+   - Emitted atomically into the transactional outbox upon accepted chat message creation.
+   - Classification: `protected`.
    - Payload: `{ messageId, threadId, groupId, senderUserId, state: "accepted", serverReceivedAt, clientCreatedAt }`.
    - Invariants:
-     - Message state is strictly `accepted` (server acceptance only; never claims delivered or read).
-     - Message body is protected content and is omitted from public/broad outbox payload projection.
+     - Message state is strictly `accepted`.
+     - Strictly zero message body/content in outbox payload (content is protected).
      - Strictly zero location coordinates, media references, links, or delivery receipts.
 
-## S10A Safety Incident Durable Events
+## S10 Safety Incident Durable Events
 
 1. **`incident.activated.v1`**:
    - Emitted atomically into the transactional outbox upon deliberate SOS activation.
@@ -102,6 +103,18 @@ Durable events emitted via the transactional outbox (`outbox_events` table) upon
      - Initial state is strictly `active`; evidence tier is strictly `server_accepted`.
      - Zero coordinates, emergency profiles, medical details, contacts, or secrets in outbox payload.
      - Never claims assistance dispatched or emergency services contacted.
+
+2. **`incident.stand_down_requested.v1`**:
+   - Emitted atomically into the transactional outbox upon deliberate stand-down request by incident creator.
+   - Aggregate Type: `safety_incident`
+   - Aggregate Version: `version` (optimistic version of updated incident projection)
+   - Classification: `safety`
+   - Payload: `{ incidentId, userId, state: "stand_down_requested", latestEvidence: "server_accepted", reasonCode, requestedAt }`.
+   - Invariants:
+     - Reason code must be deliberate (`false_alarm`, `self_resolved`, `assistance_arrived`, `other`).
+     - Resulting state is strictly `stand_down_requested`; evidence tier is strictly `server_accepted`.
+     - Strictly zero coordinates, medical details, contacts, or secrets in outbox payload.
+     - Never claims incident resolved, closed, or assistance delivered.
 
 ## Realtime Presence Event Constraint
 

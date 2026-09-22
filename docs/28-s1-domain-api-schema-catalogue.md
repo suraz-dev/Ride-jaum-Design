@@ -578,9 +578,28 @@ type ChatMessage = {
 ```ts
 type SafetyIncidentActivationMethod = 'hold_to_activate' | 'accessibility_equivalent';
 
-type SafetyIncidentState = 'active'; // Initial state for S10A; stand-down/resolved lifecycle deferred
+type SafetyIncidentState = 'active' | 'stand_down_requested';
 
-type SafetyIncidentEvidenceTier = 'server_accepted'; // S10A initial tier; provider/recipient evidence deferred
+type SafetyIncidentEvidenceTier = 'server_accepted'; // S10A/S10B tier; provider/recipient evidence deferred
+
+type StandDownReasonCode = 'false_alarm' | 'self_resolved' | 'assistance_arrived' | 'other';
+
+type StandDownSafetyIncidentCommand = {
+  reasonCode: StandDownReasonCode;
+  details?: string;
+};
+
+type SafetyIncidentTimelineEvent = {
+  id: string;
+  incidentId: string;
+  eventType: string;
+  fromState?: string;
+  toState: string;
+  evidenceTier: string;
+  actorUserId: string;
+  occurredAt: UtcInstant;
+  metadata?: Record<string, unknown>;
+};
 
 type ActivateSafetyIncidentCommand = {
   activationMethod: SafetyIncidentActivationMethod;
@@ -606,9 +625,11 @@ type SafetyIncident = {
 | Method | Path | Purpose | Key rules |
 |---|---|---|---|
 | `POST` | `/v1/safety-incidents` | record deliberate SOS activation | Idempotency-Key required; deliberate activationMethod (hold_to_activate / accessibility_equivalent); initial state: active; latestEvidence: server_accepted; locationObservation requires active safety_profile consent (403 CONSENT_REQUIRED if absent/revoked; activation without coordinates succeeds without consent); rideId requires existing ride (404), active group membership (403), and eligible state (422); complete (lat, lng) pair required with lat [-90, 90], lng [-180, 180], accuracy >= 0; creates projection + append-only status ledger; emits incident.activated.v1 outbox fact with classification safety; records safe audit metadata |
-| `GET` | `/v1/safety-incidents/{incidentId}` | retrieve safety incident projection | Creator-only read access for S10A (returns 403 for non-creators, 404 for missing); minimal protected fields; records safe audit metadata; zero leaked coordinates or emergency contacts |
+| `GET` | `/v1/safety-incidents/{incidentId}` | retrieve safety incident projection | Creator-only read access (returns 403 for non-creators, 404 for missing); minimal protected fields; records safe audit metadata; zero leaked coordinates or emergency contacts |
+| `POST` | `/v1/safety-incidents/{incidentId}/stand-down` | record deliberate incident stand-down | Idempotency-Key required; deliberate reasonCode required (false_alarm, self_resolved, assistance_arrived, other); creator-only authorization; transitions projection state from active to stand_down_requested (422 if not active); appends immutable ledger event; emits incident.stand_down_requested.v1 outbox fact with classification safety; latestEvidence remains server_accepted; records safe audit metadata |
+| `GET` | `/v1/safety-incidents/{incidentId}/events` | retrieve chronological timeline events | Creator-only read access; returns ordered timeline (occurredAt ASC); strictly zero coordinates, medical data, or emergency contacts exposed; records safe audit metadata |
 
-### S10A Safety Invariants & Privacy Guardrails
+### S10 Safety Invariants & Privacy Guardrails
 1. **Deliberate Activation Methods:** Only `hold_to_activate` and `accessibility_equivalent` are permitted. Any other value is rejected with HTTP `400 INVALID_COMMAND`.
 2. **Initial State & Truthful Evidence:** Initial state is strictly `active`. Initial evidence tier is strictly `server_accepted`. The system NEVER claims sent, delivered, acknowledged, or emergency-services contact.
 3. **Consent-Gated Coordinate Retention:**
@@ -627,19 +648,31 @@ type SafetyIncident = {
    - Latitude must be in range `[-90.0, 90.0]`.
    - Longitude must be in range `[-180.0, 180.0]`.
    - `accuracyMeters`, if supplied, must be non-negative (`>= 0.0`).
-6. **Creator-Only Read Authorization:** For S10A, incident projections can only be read by the user who activated the incident. Non-creators receive HTTP `403 FORBIDDEN`. Missing incidents return HTTP `404 NOT_FOUND`.
-7. **Append-Only Status-Event Ledger:** Every incident activation writes to both `safety_incidents` (projection) and `safety_incident_events` (status ledger). The ledger is protected by database trigger `trg_safety_incident_events_immutability` executing function `prevent_safety_incident_events_mutation()`, preventing all `UPDATE` and `DELETE` operations.
-8. **Durable Outbox Event:** Emits `incident.activated.v1` atomically into the transactional outbox with `classification = 'safety'`.
-9. **Strict Privacy & Redaction Boundaries:**
+6. **Creator-Only Authorization:** Incident projections, stand-down requests, and chronological timelines are strictly creator-only. Non-creators receive HTTP `403 FORBIDDEN`. Missing incidents return HTTP `404 NOT_FOUND`.
+7. **Deliberate Stand-Down Lifecycle (S10B):**
+   - Caller must provide a valid `reasonCode` (`false_alarm`, `self_resolved`, `assistance_arrived`, `other`). Invalid or missing reason returns HTTP `400 INVALID_COMMAND`.
+   - Stand-down is only valid from state `active`. Attempting stand-down on non-active incidents returns HTTP `422 UNPROCESSABLE_ENTITY`.
+   - Stand-down transitions the projection `state` to `stand_down_requested`. `latestEvidence` remains `server_accepted` (no closure, delivery, or provider claims).
+   - Appends an immutable event to `safety_incident_events` (`fromState: 'active'`, `toState: 'stand_down_requested'`).
+   - Emits `incident.stand_down_requested.v1` outbox fact atomically with `classification = 'safety'`.
+   - Audit logs record safe metadata (`INCIDENT_STAND_DOWN_REQUESTED`).
+8. **Chronological Redacted Timeline (S10B):**
+   - Returns timeline events ordered by `occurredAt ASC`.
+   - Provides safe lifecycle metadata (`id`, `incidentId`, `eventType`, `fromState`, `toState`, `evidenceTier`, `actorUserId`, `occurredAt`, `metadata`).
+   - Strictly zero GPS coordinates, medical records, or emergency contact identities are returned.
+   - Audit logs record safe metadata (`INCIDENT_EVENTS_READ`).
+9. **Append-Only Status-Event Ledger:** Every incident activation and stand-down writes to `safety_incident_events`. The ledger is protected by database trigger `trg_safety_incident_events_immutability` executing function `prevent_safety_incident_events_mutation()`, preventing all `UPDATE` and `DELETE` operations.
+10. **Durable Outbox Events:** Emits `incident.activated.v1` and `incident.stand_down_requested.v1` atomically into the transactional outbox with `classification = 'safety'`.
+11. **Strict Privacy & Redaction Boundaries:**
    - Raw location coordinates, medical profiles, emergency contacts, secrets, and sensitive notes are strictly prohibited from `identity_audit_events` and outbox event payloads.
-   - Audit logs record safe metadata only (`INCIDENT_ACTIVATED`, `INCIDENT_READ`, target incident ID, actor user ID, device session ID).
-10. **Idempotency:** `Idempotency-Key` header is mandatory on `POST /v1/safety-incidents`. Retries with the same key and payload replay the cached `201 Created` response without duplicating database rows or outbox events. Mismatched payloads return `409 IDEMPOTENCY_MISMATCH`.
-11. **Explicitly Deferred Scope:** The following are strictly out of scope for S10A:
-   - Push notifications, SMS/voice alerts, cellular breadcrumbs, and emergency contact broadcasts.
+   - Audit logs record safe metadata only (`INCIDENT_ACTIVATED`, `INCIDENT_READ`, `INCIDENT_STAND_DOWN_REQUESTED`, `INCIDENT_EVENTS_READ`, target incident ID, actor user ID, device session ID).
+12. **Idempotency:** `Idempotency-Key` header is mandatory on `POST /v1/safety-incidents` and `POST /v1/safety-incidents/{incidentId}/stand-down`. Retries with the same key and payload replay cached responses without duplicating database rows or outbox events. Mismatched payloads return `409 IDEMPOTENCY_MISMATCH`.
+13. **Explicitly Deferred Scope:** The following remain strictly out of scope for S10B:
+   - Incident closure / closed state transitions (`closed`).
+   - Provider delivery, push notifications, SMS/voice alerts, cellular breadcrumbs, and emergency contact broadcasts.
    - BLE mesh relay broadcast, LoRa, or satellite communications.
    - Public emergency dispatch integrations (Nepal 112/100/102).
    - Third-party provider integrations, webhooks, and external status polling.
-   - Stand-down request/confirm lifecycle (`POST /v1/safety-incidents/{incidentId}/stand-down`).
    - Channel attempt timeline (`GET /v1/safety-incidents/{incidentId}/attempts`).
    - Recipient acknowledgements (`POST /v1/safety-incidents/{incidentId}/acknowledgements`).
    - Realtime STOMP/WebSocket incident delivery.

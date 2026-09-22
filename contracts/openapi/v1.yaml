@@ -527,6 +527,41 @@ paths:
         '401': { $ref: '#/components/responses/ApiError' }
         '403': { $ref: '#/components/responses/ApiError' }
         '404': { $ref: '#/components/responses/ApiError' }
+  /safety-incidents/{incidentId}/stand-down:
+    parameters: [{ $ref: '#/components/parameters/IncidentId' }]
+    post:
+      operationId: standDownSafetyIncident
+      summary: Deliberate stand-down of a safety incident
+      description: Records a deliberate stand-down request for an active safety incident. Transitions state to stand_down_requested; evidence tier remains server_accepted. Scoped strictly to the incident creator. Requires Idempotency-Key. Emits incident.stand_down_requested.v1 outbox event with classification safety.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/StandDownSafetyIncidentCommand' } } }
+      responses:
+        '200': { $ref: '#/components/responses/SafetyIncident' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
+  /safety-incidents/{incidentId}/events:
+    parameters: [{ $ref: '#/components/parameters/IncidentId' }]
+    get:
+      operationId: getSafetyIncidentEvents
+      summary: Retrieve chronological timeline events for a safety incident
+      description: Returns ordered, redacted timeline events for a safety incident. Scoped strictly to the incident creator. Strictly zero coordinates, medical details, emergency contacts, or secrets are exposed.
+      responses:
+        '200':
+          description: Ordered list of safety incident timeline events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SafetyIncidentTimelineEvent' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
   /configuration/effective:
     get:
       operationId: getEffectiveConfiguration
@@ -1162,7 +1197,7 @@ components:
         rideId: { $ref: '#/components/schemas/OpaqueId' }
         state:
           type: string
-          enum: [active]
+          enum: [active, stand_down_requested]
         activationMethod:
           type: string
           enum: [hold_to_activate, accessibility_equivalent]
@@ -1174,6 +1209,33 @@ components:
         createdAt: { $ref: '#/components/schemas/UtcInstant' }
         updatedAt: { $ref: '#/components/schemas/UtcInstant' }
         version: { type: integer }
+    StandDownReasonCode:
+      type: string
+      enum: [false_alarm, self_resolved, assistance_arrived, other]
+    StandDownSafetyIncidentCommand:
+      type: object
+      required: [reasonCode]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/StandDownReasonCode'
+        details:
+          type: string
+          maxLength: 500
+    SafetyIncidentTimelineEvent:
+      type: object
+      required: [id, incidentId, eventType, toState, evidenceTier, actorUserId, occurredAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        incidentId: { $ref: '#/components/schemas/OpaqueId' }
+        eventType: { type: string }
+        fromState: { type: string, nullable: true }
+        toState: { type: string }
+        evidenceTier: { type: string }
+        actorUserId: { $ref: '#/components/schemas/OpaqueId' }
+        occurredAt: { $ref: '#/components/schemas/UtcInstant' }
+        metadata:
+          type: object
+          additionalProperties: true
     GeoSource:
       type: object
       required: [id, sourceName, sourceVersion, licenceReference, reviewState, receivedAt, createdAt, updatedAt]
