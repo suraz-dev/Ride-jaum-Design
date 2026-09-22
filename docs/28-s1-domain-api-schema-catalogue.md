@@ -573,37 +573,60 @@ type ChatMessage = {
 
 ## 8. Safety incidents and channel attempts
 
+### S10A Safety Incident Ledger Foundation
+
 ```ts
-type SafetyIncident = {
-  id: string;
-  state: 'activating' | 'active' | 'stand_down_requested' | 'resolved' | 'cancelled';
-  activatedAt: UtcInstant;
-  country: CountryContext;
-  latestEvidence: EvidenceState;
-  capabilitySnapshot: Array<{ channel: string; state: 'available' | 'unavailable' | 'unknown' }>;
-  version: ResourceVersion;
+type SafetyIncidentActivationMethod = 'hold_to_activate' | 'accessibility_equivalent';
+
+type SafetyIncidentState = 'active'; // Initial state for S10A; stand-down/resolved lifecycle deferred
+
+type SafetyIncidentEvidenceTier = 'server_accepted'; // S10A initial tier; provider/recipient evidence deferred
+
+type ActivateSafetyIncidentCommand = {
+  activationMethod: SafetyIncidentActivationMethod;
+  rideId?: string;
+  locationObservation?: GeoPoint;
 };
 
-type ChannelAttempt = {
+type SafetyIncident = {
   id: string;
-  incidentId: string;
-  channel: string;
-  evidence: EvidenceState;
-  attemptedAt: UtcInstant;
-  providerReference?: string; // protected/audited; no secret
-  failureCode?: string;
+  userId: string;
+  rideId?: string;
+  state: SafetyIncidentState;
+  activationMethod: SafetyIncidentActivationMethod;
+  latestEvidence: SafetyIncidentEvidenceTier;
+  country: CountryContext;
+  activatedAt: UtcInstant;
+  createdAt: UtcInstant;
+  updatedAt: UtcInstant;
+  version: number;
 };
 ```
 
 | Method | Path | Purpose | Key rules |
 |---|---|---|---|
-| `POST` | `/v1/safety-incidents` | record deliberate SOS activation | idempotency; immutable initial fact; explicit evidence state |
-| `GET` | `/v1/safety-incidents/{incidentId}` | incident status | incident participant/safety policy; minimal protected fields |
-| `POST` | `/v1/safety-incidents/{incidentId}/stand-down` | request/confirm stand-down | state-machine, audit, accessibility equivalent path |
-| `GET` | `/v1/safety-incidents/{incidentId}/attempts` | evidence timeline | authorized participants only; no fabricated receipt |
-| `POST` | `/v1/safety-incidents/{incidentId}/acknowledgements` | record recipient/user acknowledgement | identity/time evidence, not inferred delivery |
+| `POST` | `/v1/safety-incidents` | record deliberate SOS activation | Idempotency-Key required; deliberate activationMethod (hold_to_activate / accessibility_equivalent); initial state: active; latestEvidence: server_accepted; creates projection + append-only status ledger; emits incident.activated.v1 outbox fact with classification safety; records safe audit metadata |
+| `GET` | `/v1/safety-incidents/{incidentId}` | retrieve safety incident projection | Creator-only read access for S10A (returns 403 for non-creators, 404 for missing); minimal protected fields; records safe audit metadata; zero leaked coordinates or emergency contacts |
 
-No API names a public emergency-service integration until one is approved, tested, legally reviewed, and represented as an explicit provider/channel capability under ADR-007.
+### S10A Safety Invariants & Privacy Guardrails
+1. **Deliberate Activation Methods:** Only `hold_to_activate` and `accessibility_equivalent` are permitted. Any other value is rejected with HTTP `400 INVALID_COMMAND`.
+2. **Initial State & Truthful Evidence:** Initial state is strictly `active`. Initial evidence tier is strictly `server_accepted`. The system NEVER claims sent, delivered, acknowledged, or emergency-services contact.
+3. **Creator-Only Read Authorization:** For S10A, incident projections can only be read by the user who activated the incident. Non-creators receive HTTP `403 FORBIDDEN`.
+4. **Append-Only Status-Event Ledger:** Every incident activation writes to both `safety_incidents` (projection) and `safety_incident_events` (status ledger). The ledger is protected by a database immutability trigger preventing UPDATE and DELETE.
+5. **Durable Outbox Event:** Emits `incident.activated.v1` atomically into the transactional outbox with `classification = 'safety'`.
+6. **Strict Privacy & Redaction Boundaries:**
+   - Raw location coordinates, medical profiles, emergency contacts, secrets, and sensitive notes are strictly prohibited from `identity_audit_events` and outbox event payloads.
+   - Audit logs record safe metadata only (`INCIDENT_ACTIVATED`, `INCIDENT_READ`, target incident ID, actor user ID, device session ID).
+7. **Idempotency:** `Idempotency-Key` header is mandatory on `POST /v1/safety-incidents`. Retries with the same key and payload replay the cached `201 Created` response without duplicating database rows or outbox events. Mismatched payloads return `409 IDEMPOTENCY_MISMATCH`.
+8. **Explicitly Deferred Scope:** The following are strictly out of scope for S10A:
+   - Push notifications, SMS/voice alerts, cellular breadcrumbs, and emergency contact broadcasts.
+   - BLE mesh relay broadcast, LoRa, or satellite communications.
+   - Public emergency dispatch integrations (Nepal 112/100/102).
+   - Third-party provider integrations, webhooks, and external status polling.
+   - Stand-down request/confirm lifecycle (`POST /v1/safety-incidents/{incidentId}/stand-down`).
+   - Channel attempt timeline (`GET /v1/safety-incidents/{incidentId}/attempts`).
+   - Recipient acknowledgements (`POST /v1/safety-incidents/{incidentId}/acknowledgements`).
+   - Realtime STOMP/WebSocket incident delivery.
 
 ## 9. Country configuration and capability content
 

@@ -502,19 +502,28 @@ paths:
   /safety-incidents:
     post:
       operationId: activateSafetyIncident
+      summary: Deliberate activation of a safety incident (SOS)
+      description: Records a deliberate SOS activation via hold_to_activate or accessibility_equivalent. State is initially active; evidence tier is server_accepted. Requires Idempotency-Key. Emits incident.activated.v1 outbox event with classification safety.
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/ActivateSafetyIncidentCommand' } } }
       responses:
         '201': { $ref: '#/components/responses/SafetyIncident' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
         '422': { $ref: '#/components/responses/ApiError' }
   /safety-incidents/{incidentId}:
     parameters: [{ $ref: '#/components/parameters/IncidentId' }]
     get:
       operationId: getSafetyIncident
+      summary: Retrieve safety incident projection
+      description: Returns safety incident details. Scoped strictly to the incident creator for S10A. Minimal protected fields; no location coordinates, secrets, or emergency profile leaked in uncontracted paths.
       responses:
         '200': { $ref: '#/components/responses/SafetyIncident' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
         '404': { $ref: '#/components/responses/ApiError' }
   /configuration/effective:
     get:
@@ -1135,18 +1144,34 @@ components:
       type: object
       required: [activationMethod]
       properties:
-        activationMethod: { enum: [hold_to_activate, accessibility_equivalent] }
-        locationObservation: { $ref: '#/components/schemas/GeoPoint' }
+        activationMethod:
+          type: string
+          enum: [hold_to_activate, accessibility_equivalent]
+        rideId:
+          $ref: '#/components/schemas/OpaqueId'
+        locationObservation:
+          $ref: '#/components/schemas/GeoPoint'
     SafetyIncident:
       type: object
-      required: [id, state, activatedAt, latestEvidence, country, version]
+      required: [id, userId, state, activationMethod, latestEvidence, activatedAt, version]
       properties:
         id: { $ref: '#/components/schemas/OpaqueId' }
-        state: { enum: [activating, active, stand_down_requested, resolved, cancelled] }
-        activatedAt: { $ref: '#/components/schemas/UtcInstant' }
-        latestEvidence: { enum: [local_recorded, server_accepted, provider_accepted, delivery_unknown, recipient_acknowledged, failed] }
+        userId: { $ref: '#/components/schemas/OpaqueId' }
+        rideId: { $ref: '#/components/schemas/OpaqueId' }
+        state:
+          type: string
+          enum: [active]
+        activationMethod:
+          type: string
+          enum: [hold_to_activate, accessibility_equivalent]
+        latestEvidence:
+          type: string
+          enum: [server_accepted]
         country: { $ref: '#/components/schemas/CountryContext' }
-        version: { type: string }
+        activatedAt: { $ref: '#/components/schemas/UtcInstant' }
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+        version: { type: integer }
     GeoSource:
       type: object
       required: [id, sourceName, sourceVersion, licenceReference, reviewState, receivedAt, createdAt, updatedAt]

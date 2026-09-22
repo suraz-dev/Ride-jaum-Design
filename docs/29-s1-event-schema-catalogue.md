@@ -82,11 +82,26 @@ Durable events emitted via the transactional outbox (`outbox_events` table) upon
    - Emitted atomically when a text-only chat message is accepted by the server into a private group chat thread.
    - Aggregate Type: `chat_message`
    - Aggregate Version: `1`
+   - Classification: `protected`
    - Payload: `{ messageId, threadId, groupId, senderUserId, state: "accepted", serverReceivedAt, clientCreatedAt }`.
    - Invariants:
      - Message state is strictly `accepted` (server acceptance only; never claims delivered or read).
      - Message body is protected content and is omitted from public/broad outbox payload projection.
      - Strictly zero location coordinates, media references, links, or delivery receipts.
+
+## S10A Safety Incident Durable Events
+
+1. **`incident.activated.v1`**:
+   - Emitted atomically into the transactional outbox upon deliberate SOS activation.
+   - Aggregate Type: `safety_incident`
+   - Aggregate Version: `1`
+   - Classification: `safety`
+   - Payload: `{ incidentId, userId, activationMethod, state: "active", latestEvidence: "server_accepted", countryCode: "NP", activatedAt, serverReceivedAt }`.
+   - Invariants:
+     - Activation method must be deliberate (`hold_to_activate` or `accessibility_equivalent`).
+     - Initial state is strictly `active`; evidence tier is strictly `server_accepted`.
+     - Zero coordinates, emergency profiles, medical details, contacts, or secrets in outbox payload.
+     - Never claims assistance dispatched or emergency services contacted.
 
 ## Realtime Presence Event Constraint
 
