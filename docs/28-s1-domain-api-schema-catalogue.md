@@ -605,20 +605,36 @@ type SafetyIncident = {
 
 | Method | Path | Purpose | Key rules |
 |---|---|---|---|
-| `POST` | `/v1/safety-incidents` | record deliberate SOS activation | Idempotency-Key required; deliberate activationMethod (hold_to_activate / accessibility_equivalent); initial state: active; latestEvidence: server_accepted; creates projection + append-only status ledger; emits incident.activated.v1 outbox fact with classification safety; records safe audit metadata |
+| `POST` | `/v1/safety-incidents` | record deliberate SOS activation | Idempotency-Key required; deliberate activationMethod (hold_to_activate / accessibility_equivalent); initial state: active; latestEvidence: server_accepted; locationObservation requires active safety_profile consent (403 CONSENT_REQUIRED if absent/revoked; activation without coordinates succeeds without consent); rideId requires existing ride (404), active group membership (403), and eligible state (422); complete (lat, lng) pair required with lat [-90, 90], lng [-180, 180], accuracy >= 0; creates projection + append-only status ledger; emits incident.activated.v1 outbox fact with classification safety; records safe audit metadata |
 | `GET` | `/v1/safety-incidents/{incidentId}` | retrieve safety incident projection | Creator-only read access for S10A (returns 403 for non-creators, 404 for missing); minimal protected fields; records safe audit metadata; zero leaked coordinates or emergency contacts |
 
 ### S10A Safety Invariants & Privacy Guardrails
 1. **Deliberate Activation Methods:** Only `hold_to_activate` and `accessibility_equivalent` are permitted. Any other value is rejected with HTTP `400 INVALID_COMMAND`.
 2. **Initial State & Truthful Evidence:** Initial state is strictly `active`. Initial evidence tier is strictly `server_accepted`. The system NEVER claims sent, delivered, acknowledged, or emergency-services contact.
-3. **Creator-Only Read Authorization:** For S10A, incident projections can only be read by the user who activated the incident. Non-creators receive HTTP `403 FORBIDDEN`.
-4. **Append-Only Status-Event Ledger:** Every incident activation writes to both `safety_incidents` (projection) and `safety_incident_events` (status ledger). The ledger is protected by a database immutability trigger preventing UPDATE and DELETE.
-5. **Durable Outbox Event:** Emits `incident.activated.v1` atomically into the transactional outbox with `classification = 'safety'`.
-6. **Strict Privacy & Redaction Boundaries:**
+3. **Consent-Gated Coordinate Retention:**
+   - Incident activation without coordinates (`locationObservation: null` or omitted) is fully supported and does NOT require consent.
+   - When `locationObservation` is provided, caller MUST have active `safety_profile` consent (`consent_receipts` purpose `safety_profile`, state `granted`).
+   - If consent is absent or revoked, the coordinate-bearing request is rejected with HTTP `403 FORBIDDEN` (`code: CONSENT_REQUIRED`).
+   - Zero coordinates are stored or leaked in `identity_audit_events` or outbox payloads.
+4. **Authorized Ride Linkage:**
+   - When `rideId` is supplied:
+     - The ride must exist; missing ride returns HTTP `404 NOT_FOUND`.
+     - The caller must be an active member of the ride's group; non-members or riders from other groups return HTTP `403 FORBIDDEN`.
+     - The ride must be in an eligible ongoing state (`preparing`, `in_progress`, `paused`, `active`); completed or cancelled rides are rejected with HTTP `422 UNPROCESSABLE_ENTITY`.
+     - Failure at any linkage validation gate rejects the request without creating an incident or emitting events.
+5. **Location Input Validation:**
+   - Latitude and longitude must be supplied as a complete pair. Providing one without the other returns HTTP `400 INVALID_COMMAND`.
+   - Latitude must be in range `[-90.0, 90.0]`.
+   - Longitude must be in range `[-180.0, 180.0]`.
+   - `accuracyMeters`, if supplied, must be non-negative (`>= 0.0`).
+6. **Creator-Only Read Authorization:** For S10A, incident projections can only be read by the user who activated the incident. Non-creators receive HTTP `403 FORBIDDEN`. Missing incidents return HTTP `404 NOT_FOUND`.
+7. **Append-Only Status-Event Ledger:** Every incident activation writes to both `safety_incidents` (projection) and `safety_incident_events` (status ledger). The ledger is protected by database trigger `trg_safety_incident_events_immutability` executing function `prevent_safety_incident_events_mutation()`, preventing all `UPDATE` and `DELETE` operations.
+8. **Durable Outbox Event:** Emits `incident.activated.v1` atomically into the transactional outbox with `classification = 'safety'`.
+9. **Strict Privacy & Redaction Boundaries:**
    - Raw location coordinates, medical profiles, emergency contacts, secrets, and sensitive notes are strictly prohibited from `identity_audit_events` and outbox event payloads.
    - Audit logs record safe metadata only (`INCIDENT_ACTIVATED`, `INCIDENT_READ`, target incident ID, actor user ID, device session ID).
-7. **Idempotency:** `Idempotency-Key` header is mandatory on `POST /v1/safety-incidents`. Retries with the same key and payload replay the cached `201 Created` response without duplicating database rows or outbox events. Mismatched payloads return `409 IDEMPOTENCY_MISMATCH`.
-8. **Explicitly Deferred Scope:** The following are strictly out of scope for S10A:
+10. **Idempotency:** `Idempotency-Key` header is mandatory on `POST /v1/safety-incidents`. Retries with the same key and payload replay the cached `201 Created` response without duplicating database rows or outbox events. Mismatched payloads return `409 IDEMPOTENCY_MISMATCH`.
+11. **Explicitly Deferred Scope:** The following are strictly out of scope for S10A:
    - Push notifications, SMS/voice alerts, cellular breadcrumbs, and emergency contact broadcasts.
    - BLE mesh relay broadcast, LoRa, or satellite communications.
    - Public emergency dispatch integrations (Nepal 112/100/102).

@@ -503,7 +503,7 @@ paths:
     post:
       operationId: activateSafetyIncident
       summary: Deliberate activation of a safety incident (SOS)
-      description: Records a deliberate SOS activation via hold_to_activate or accessibility_equivalent. State is initially active; evidence tier is server_accepted. Requires Idempotency-Key. Emits incident.activated.v1 outbox event with classification safety.
+      description: Records a deliberate SOS activation via hold_to_activate or accessibility_equivalent. State is initially active; evidence tier is server_accepted. Requires Idempotency-Key. If locationObservation is supplied, active safety_profile consent is required; if absent or revoked, rejected with 403 CONSENT_REQUIRED. If rideId is supplied, verifies the ride exists (404), caller is an active group member (403), and ride is eligible (422). Emits incident.activated.v1 outbox event with classification safety. Coordinates are never included in outbox or audit logs.
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
@@ -512,6 +512,8 @@ paths:
         '201': { $ref: '#/components/responses/SafetyIncident' }
         '400': { $ref: '#/components/responses/ApiError' }
         '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
         '409': { $ref: '#/components/responses/ApiError' }
         '422': { $ref: '#/components/responses/ApiError' }
   /safety-incidents/{incidentId}:
