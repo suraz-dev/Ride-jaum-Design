@@ -1508,7 +1508,7 @@ components:
         groupId: { $ref: '#/components/schemas/OpaqueId' }
         state:
           type: string
-          enum: [active, archived]
+          enum: [active]
         createdAt: { $ref: '#/components/schemas/UtcInstant' }
         updatedAt: { $ref: '#/components/schemas/UtcInstant' }
     ChatMessage:

@@ -524,7 +524,7 @@ type PostModerationDecision = {
 ### S9B Private Group Chat & Queued Message Foundation
 
 ```ts
-type ChatThreadState = 'active' | 'archived';
+type ChatThreadState = 'active';
 
 type ChatThread = {
   id: string;
