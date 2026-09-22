@@ -1263,23 +1263,29 @@ components:
       enum: [emergency_contact, squad_member, nearby_peer, responder]
     SafetyChannelAttemptResult:
       type: string
-      enum: [blocked_flag_disabled, failed, delivery_unknown, queued_for_server, local_recorded]
+      description: S10C foundation evidence result; strictly blocked_flag_disabled.
+      enum: [blocked_flag_disabled]
     SafetyChannelErrorCategory:
       type: string
-      enum: [channel_disabled, rate_limited, transport_unavailable, invalid_payload, client_timeout, internal_error]
+      description: S10C foundation error category; strictly channel_disabled.
+      enum: [channel_disabled]
     SafetyChannelAttempt:
       type: object
-      required: [id, incidentId, channelType, targetClass, result, attemptedAt]
+      required: [id, incidentId, channelType, targetClass, result, safeErrorCategory, attemptedAt]
       properties:
         id: { $ref: '#/components/schemas/OpaqueId' }
         incidentId: { $ref: '#/components/schemas/OpaqueId' }
         channelType: { $ref: '#/components/schemas/SafetyChannelType' }
         targetClass: { $ref: '#/components/schemas/SafetyChannelTargetClass' }
         result: { $ref: '#/components/schemas/SafetyChannelAttemptResult' }
-        safeReceiptRef: { type: string, nullable: true }
+        safeReceiptRef:
+          type: string
+          nullable: true
+          description: Always null or omitted in S10C. No queue, worker, or provider receipt references exist.
         retryOfAttemptId: { $ref: '#/components/schemas/OpaqueId', nullable: true }
         failoverFromAttemptId: { $ref: '#/components/schemas/OpaqueId', nullable: true }
-        safeErrorCategory: { $ref: '#/components/schemas/SafetyChannelErrorCategory', nullable: true }
+        safeErrorCategory:
+          $ref: '#/components/schemas/SafetyChannelErrorCategory'
         attemptedAt: { $ref: '#/components/schemas/UtcInstant' }
     GeoSource:
       type: object

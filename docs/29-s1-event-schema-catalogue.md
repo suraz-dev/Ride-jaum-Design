@@ -123,9 +123,9 @@ Durable events emitted via the transactional outbox (`outbox_events` table) upon
    - Classification: `safety`
    - Payload: `{ incidentId, attemptId, channelType, targetClass, result, safeReceiptRef, retryOfAttemptId, failoverFromAttemptId, safeErrorCategory, attemptedAt }`.
    - Invariants:
-     - In S10C, result is strictly `blocked_flag_disabled` with error category `channel_disabled` and null receipt reference. No queue (`queued_for_server`) or receipt claims (`rcpt_saf_*`) are emitted.
-     - Permits only non-external-delivery evidence results (`blocked_flag_disabled`, `failed`, `delivery_unknown`, `queued_for_server`, `local_recorded`).
-     - Prohibits false delivery/provider claims (`sent`, `delivered`, `provider_accepted`, `recipient_acknowledged`, `dispatched`).
+     - In S10C, result is strictly `blocked_flag_disabled` with error category `channel_disabled` and null receipt reference. No queue (`queued_for_server`) or receipt claims (`rcpt_saf_*`) exist or are emitted in S10C.
+     - In S10C, permits only foundation result `blocked_flag_disabled` with error category `channel_disabled`.
+     - Strictly prohibits all false delivery, queue, failure, or unverified provider claims (`sent`, `delivered`, `provider_accepted`, `recipient_acknowledged`, `dispatched`, `queued_for_server`, `failed`, `delivery_unknown`, `local_recorded`).
      - Strictly zero contact phone numbers, recipient identities, raw provider bodies, coordinates, medical records, or secrets in outbox payload.
 
 ## Realtime Presence Event Constraint

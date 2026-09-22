@@ -604,9 +604,9 @@ type SafetyChannelType = 'in_app' | 'push' | 'sms' | 'voice' | 'device_relay';
 
 type SafetyChannelTargetClass = 'emergency_contact' | 'squad_member' | 'nearby_peer' | 'responder';
 
-type SafetyChannelAttemptResult = 'blocked_flag_disabled' | 'failed' | 'delivery_unknown' | 'queued_for_server' | 'local_recorded';
+type SafetyChannelAttemptResult = 'blocked_flag_disabled';
 
-type SafetyChannelErrorCategory = 'channel_disabled' | 'rate_limited' | 'transport_unavailable' | 'invalid_payload' | 'client_timeout' | 'internal_error';
+type SafetyChannelErrorCategory = 'channel_disabled';
 
 type SafetyChannelAttempt = {
   id: string;
@@ -614,10 +614,10 @@ type SafetyChannelAttempt = {
   channelType: SafetyChannelType;
   targetClass: SafetyChannelTargetClass;
   result: SafetyChannelAttemptResult;
-  safeReceiptRef?: string;
+  safeReceiptRef?: string | null;
   retryOfAttemptId?: string;
   failoverFromAttemptId?: string;
-  safeErrorCategory?: SafetyChannelErrorCategory;
+  safeErrorCategory: SafetyChannelErrorCategory;
   attemptedAt: UtcInstant;
 };
 
@@ -691,12 +691,12 @@ type SafetyIncident = {
     - Channel-attempt recording is strictly server-owned behind an internal boundary (not callable by normal authenticated users). A creator must never manufacture an immutable channel-attempt fact via HTTP. Public POST endpoints for channel-attempt creation (including any `/attempts` aliases) are completely absent.
     - Stores strictly safe metadata: incident ID, channel type, target class, result, attempt time, safe receipt reference, retry/failover relation, and safe error category.
 11. **Strict Evidence Ceiling & Honest Non-Claim (S10C):**
-    - In S10C, there is no queue or provider yet, so no receipt or queue claim is valid. Any S10C-generated record must remain `blocked_flag_disabled` with `channel_disabled` and a `null` receipt reference.
-    - Neither `queued_for_server` nor synthetic receipt references (`rcpt_saf_*`) can be produced in S10C.
-    - Explicitly prohibits false-delivery claims: `sent`, `delivered`, `provider_accepted`, `recipient_acknowledged`, `dispatched`, or `emergency_service` are forbidden by database check constraints.
-12. **Default-Off Capability Flags & Zero Provider Activity (S10C):**
-    - All channel capabilities default to disabled (`ridejaunm.safety.channels.<channel>.enabled: false`).
-    - S10C makes strictly zero outbound network calls, loads no external provider SDKs or credentials, and contacts no real recipients. Attempts against disabled channels result in `blocked_flag_disabled` with error category `channel_disabled`.
+    - In S10C, there is no queue, worker dispatch, or external provider integration; no receipt or queue claim is valid. Any S10C-generated record must remain `blocked_flag_disabled` with `channel_disabled` and a `null` receipt reference.
+    - Neither `queued_for_server` nor synthetic receipt references (`rcpt_saf_*`) exist in S10C. Database CHECK constraints enforce `result = 'blocked_flag_disabled'`, `safe_receipt_ref IS NULL`, and `safe_error_category IS NOT NULL AND safe_error_category = 'channel_disabled'`.
+    - Explicitly prohibits all false delivery, queue, and unverified claims: `sent`, `delivered`, `provider_accepted`, `recipient_acknowledged`, `dispatched`, `emergency_service`, `queued_for_server`, `failed`, `delivery_unknown`, `local_recorded` are forbidden.
+12. **Provider-Free Foundation & Zero Outbound Activity (S10C):**
+    - S10C is a pure evidence foundation without external providers, queues, or channel-flag configuration. All attempts recorded at this stage are server-internal foundation records with result `blocked_flag_disabled` and error category `channel_disabled`.
+    - S10C makes strictly zero outbound network calls, loads no external provider SDKs or credentials, and contacts no real recipients. Attempts are recorded as `blocked_flag_disabled` with error category `channel_disabled`.
 13. **Creator-Only Authorization & Redacted Channel Timeline (S10C):**
     - `GET /v1/safety-incidents/{incidentId}/channel-attempts` is restricted strictly to the incident creator. Non-creators receive HTTP `403 FORBIDDEN`. Missing incidents return HTTP `404 NOT_FOUND`.
     - Timeline queries return attempts ordered deterministically (`attempted_at ASC, id ASC`).
