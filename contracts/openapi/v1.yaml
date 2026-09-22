@@ -456,7 +456,7 @@ paths:
     get:
       operationId: getOfflinePackManifest
       summary: Retrieve immutable integrity and provenance manifest for an offline pack
-      description: Returns integrity and provenance manifest for an eligible offline pack. Enforces shared eligibility validation: pack must be available, not retired, and fresh (freshUntil >= now); bound graph must be approved, published, and fresh. A manifest must never imply a fully usable pack when an asset is stale (fails closed with 422 PACK_STALE if any layer asset has freshUntil < now).
+      description: "Returns integrity and provenance manifest for an eligible offline pack. Enforces shared eligibility validation: pack must be available, not retired, and fresh (freshUntil >= now); bound graph must be approved, published, and fresh. A manifest must never imply a fully usable pack when an asset is stale (fails closed with 422 PACK_STALE if any layer asset has freshUntil < now)."
       responses:
         '200': { $ref: '#/components/responses/OfflinePackManifestResponse' }
         '401': { $ref: '#/components/responses/ApiError' }
