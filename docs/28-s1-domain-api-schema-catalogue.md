@@ -586,7 +586,6 @@ type StandDownReasonCode = 'false_alarm' | 'self_resolved' | 'assistance_arrived
 
 type StandDownSafetyIncidentCommand = {
   reasonCode: StandDownReasonCode;
-  details?: string;
 };
 
 type SafetyIncidentTimelineEvent = {
@@ -598,7 +597,7 @@ type SafetyIncidentTimelineEvent = {
   evidenceTier: string;
   actorUserId: string;
   occurredAt: UtcInstant;
-  metadata?: Record<string, unknown>;
+  reasonCode?: StandDownReasonCode;
 };
 
 type ActivateSafetyIncidentCommand = {
@@ -626,8 +625,8 @@ type SafetyIncident = {
 |---|---|---|---|
 | `POST` | `/v1/safety-incidents` | record deliberate SOS activation | Idempotency-Key required; deliberate activationMethod (hold_to_activate / accessibility_equivalent); initial state: active; latestEvidence: server_accepted; locationObservation requires active safety_profile consent (403 CONSENT_REQUIRED if absent/revoked; activation without coordinates succeeds without consent); rideId requires existing ride (404), active group membership (403), and eligible state (422); complete (lat, lng) pair required with lat [-90, 90], lng [-180, 180], accuracy >= 0; creates projection + append-only status ledger; emits incident.activated.v1 outbox fact with classification safety; records safe audit metadata |
 | `GET` | `/v1/safety-incidents/{incidentId}` | retrieve safety incident projection | Creator-only read access (returns 403 for non-creators, 404 for missing); minimal protected fields; records safe audit metadata; zero leaked coordinates or emergency contacts |
-| `POST` | `/v1/safety-incidents/{incidentId}/stand-down` | record deliberate incident stand-down | Idempotency-Key required; deliberate reasonCode required (false_alarm, self_resolved, assistance_arrived, other); creator-only authorization; transitions projection state from active to stand_down_requested (422 if not active); appends immutable ledger event; emits incident.stand_down_requested.v1 outbox fact with classification safety; latestEvidence remains server_accepted; records safe audit metadata |
-| `GET` | `/v1/safety-incidents/{incidentId}/events` | retrieve chronological timeline events | Creator-only read access; returns ordered timeline (occurredAt ASC); strictly zero coordinates, medical data, or emergency contacts exposed; records safe audit metadata |
+| `POST` | `/v1/safety-incidents/{incidentId}/stand-down` | record deliberate incident stand-down | Idempotency-Key required; deliberate reasonCode required (false_alarm, self_resolved, assistance_arrived, other); accepts enumerated reasonCode only with no arbitrary details/notes; creator-only authorization; transitions projection state from active to stand_down_requested (422 if not active); appends immutable ledger event persisting reasonCode only; emits incident.stand_down_requested.v1 outbox fact with classification safety; latestEvidence remains server_accepted; records safe audit metadata |
+| `GET` | `/v1/safety-incidents/{incidentId}/events` | retrieve chronological timeline events | Creator-only read access; returns ordered timeline (occurredAt ASC, id ASC); strictly zero coordinates, medical data, emergency contacts, or arbitrary client notes exposed; returns explicitly safe fields and reasonCode only; records safe audit metadata |
 
 ### S10 Safety Invariants & Privacy Guardrails
 1. **Deliberate Activation Methods:** Only `hold_to_activate` and `accessibility_equivalent` are permitted. Any other value is rejected with HTTP `400 INVALID_COMMAND`.
@@ -651,15 +650,17 @@ type SafetyIncident = {
 6. **Creator-Only Authorization:** Incident projections, stand-down requests, and chronological timelines are strictly creator-only. Non-creators receive HTTP `403 FORBIDDEN`. Missing incidents return HTTP `404 NOT_FOUND`.
 7. **Deliberate Stand-Down Lifecycle (S10B):**
    - Caller must provide a valid `reasonCode` (`false_alarm`, `self_resolved`, `assistance_arrived`, `other`). Invalid or missing reason returns HTTP `400 INVALID_COMMAND`.
+   - The accepted command input must be the enumerated `reasonCode` only. Free-form details or notes are strictly excluded from the request schema and cannot be persisted.
+   - Persists strictly `{ "reasonCode": "<enum>" }` in `safety_incident_events.details`; arbitrary client text is never written to the immutable ledger.
    - Stand-down is only valid from state `active`. Attempting stand-down on non-active incidents returns HTTP `422 UNPROCESSABLE_ENTITY`.
    - Stand-down transitions the projection `state` to `stand_down_requested`. `latestEvidence` remains `server_accepted` (no closure, delivery, or provider claims).
    - Appends an immutable event to `safety_incident_events` (`fromState: 'active'`, `toState: 'stand_down_requested'`).
    - Emits `incident.stand_down_requested.v1` outbox fact atomically with `classification = 'safety'`.
    - Audit logs record safe metadata (`INCIDENT_STAND_DOWN_REQUESTED`).
 8. **Chronological Redacted Timeline (S10B):**
-   - Returns timeline events ordered by `occurredAt ASC`.
-   - Provides safe lifecycle metadata (`id`, `incidentId`, `eventType`, `fromState`, `toState`, `evidenceTier`, `actorUserId`, `occurredAt`, `metadata`).
-   - Strictly zero GPS coordinates, medical records, or emergency contact identities are returned.
+   - Returns timeline events with deterministic ordering `occurredAt ASC, id ASC`.
+   - Returns only explicitly safe event fields (`id`, `incidentId`, `eventType`, `fromState`, `toState`, `evidenceTier`, `actorUserId`, `occurredAt`, `reasonCode`). Generic metadata maps that could leak raw ledger details are strictly excluded.
+   - Strictly zero GPS coordinates, medical records, emergency contact identities, or free-form notes are returned.
    - Audit logs record safe metadata (`INCIDENT_EVENTS_READ`).
 9. **Append-Only Status-Event Ledger:** Every incident activation and stand-down writes to `safety_incident_events`. The ledger is protected by database trigger `trg_safety_incident_events_immutability` executing function `prevent_safety_incident_events_mutation()`, preventing all `UPDATE` and `DELETE` operations.
 10. **Durable Outbox Events:** Emits `incident.activated.v1` and `incident.stand_down_requested.v1` atomically into the transactional outbox with `classification = 'safety'`.

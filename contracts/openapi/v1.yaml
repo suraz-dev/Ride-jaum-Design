@@ -1218,9 +1218,6 @@ components:
       properties:
         reasonCode:
           $ref: '#/components/schemas/StandDownReasonCode'
-        details:
-          type: string
-          maxLength: 500
     SafetyIncidentTimelineEvent:
       type: object
       required: [id, incidentId, eventType, toState, evidenceTier, actorUserId, occurredAt]
@@ -1233,9 +1230,8 @@ components:
         evidenceTier: { type: string }
         actorUserId: { $ref: '#/components/schemas/OpaqueId' }
         occurredAt: { $ref: '#/components/schemas/UtcInstant' }
-        metadata:
-          type: object
-          additionalProperties: true
+        reasonCode:
+          $ref: '#/components/schemas/StandDownReasonCode'
     GeoSource:
       type: object
       required: [id, sourceName, sourceVersion, licenceReference, reviewState, receivedAt, createdAt, updatedAt]
