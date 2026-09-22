@@ -620,7 +620,7 @@ type SafetyIncident = {
    - When `rideId` is supplied:
      - The ride must exist; missing ride returns HTTP `404 NOT_FOUND`.
      - The caller must be an active member of the ride's group; non-members or riders from other groups return HTTP `403 FORBIDDEN`.
-     - The ride must be in an eligible ongoing state (`preparing`, `in_progress`, `paused`, `active`); completed or cancelled rides are rejected with HTTP `422 UNPROCESSABLE_ENTITY`.
+     - The ride must be in an eligible ongoing state (`preparing`, `in_progress`, `paused`); completed or cancelled rides are rejected with HTTP `422 UNPROCESSABLE_ENTITY`.
      - Failure at any linkage validation gate rejects the request without creating an incident or emitting events.
 5. **Location Input Validation:**
    - Latitude and longitude must be supplied as a complete pair. Providing one without the other returns HTTP `400 INVALID_COMMAND`.
