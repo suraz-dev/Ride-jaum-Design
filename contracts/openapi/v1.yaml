@@ -664,6 +664,131 @@ paths:
           $ref: '#/components/responses/ApiError'
         '422':
           $ref: '#/components/responses/ApiError'
+  /groups/{groupId}/chat-thread:
+    parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/OpaqueId'
+    get:
+      operationId: getGroupChatThread
+      summary: Get the private chat thread for a group
+      description: Retrieves the active private chat thread for the group. Caller must be an active member of the group.
+      responses:
+        '200':
+          description: Group chat thread
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatThreadResponse'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
+    post:
+      operationId: createOrGetGroupChatThread
+      summary: Initialize or retrieve the private chat thread for a group
+      description: Initializes the single private chat thread for a group. Safe concurrent creation guarantees exactly one active thread per group. Requires Idempotency-Key. Caller must be an active member of the group.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Chat thread initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatThreadResponse'
+        '200':
+          description: Existing chat thread returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatThreadResponse'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
+        '409':
+          $ref: '#/components/responses/ApiError'
+  /chat-threads/{threadId}/messages:
+    parameters:
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/OpaqueId'
+    get:
+      operationId: getThreadMessages
+      summary: Get paginated messages from a private chat thread
+      description: Retrieves messages in reverse-chronological keyset order (serverReceivedAt DESC, id DESC). Caller must be an active member of the group containing the thread.
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor returned from previous page.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Paginated chat messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessagePageResponse'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
+    post:
+      operationId: sendChatMessage
+      summary: Send a text-only message to a private chat thread
+      description: Submits a text-only message (1-2000 characters) to a private group chat thread. Server acceptance only (state=accepted); never claims delivery or read status. Message body is protected content: never logged in audit or exposed outside authorized group members. Emits message.queued.v1 outbox event. Requires Idempotency-Key. Caller must be an active member of the thread's group.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChatMessageCommand'
+      responses:
+        '201':
+          description: Message accepted by server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessageResponse'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '401':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/ApiError'
+        '404':
+          $ref: '#/components/responses/ApiError'
+        '409':
+          $ref: '#/components/responses/ApiError'
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -1374,6 +1499,76 @@ components:
       required: [data, meta]
       properties:
         data: { $ref: '#/components/schemas/PostModerationDecision' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ChatThread:
+      type: object
+      required: [id, groupId, state, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        groupId: { $ref: '#/components/schemas/OpaqueId' }
+        state:
+          type: string
+          enum: [active, archived]
+        createdAt: { $ref: '#/components/schemas/UtcInstant' }
+        updatedAt: { $ref: '#/components/schemas/UtcInstant' }
+    ChatMessage:
+      type: object
+      required: [id, threadId, senderUserId, senderDisplayName, body, state, serverReceivedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        threadId: { $ref: '#/components/schemas/OpaqueId' }
+        senderUserId: { $ref: '#/components/schemas/OpaqueId' }
+        senderDisplayName: { type: string, minLength: 1, maxLength: 100 }
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Strictly text-only message content. Protected content; never exposed outside authorized group members.
+        state:
+          type: string
+          enum: [accepted]
+          description: Server-accepted only. Never implies delivered or recipient-acknowledged.
+        clientCreatedAt:
+          $ref: '#/components/schemas/UtcInstant'
+        serverReceivedAt:
+          $ref: '#/components/schemas/UtcInstant'
+    CreateChatMessageCommand:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Strictly text-only message body.
+        clientCreatedAt:
+          $ref: '#/components/schemas/UtcInstant'
+    ChatThreadResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/ChatThread' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ChatMessageResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/ChatMessage' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ChatMessagePageResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items, nextCursor]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ChatMessage' }
+            nextCursor:
+              type: string
+              nullable: true
         meta: { $ref: '#/components/schemas/Meta' }
   responses:
     ApiError: { description: Safe API error, content: { application/json: { schema: { type: object, required: [error], properties: { error: { $ref: '#/components/schemas/ErrorBody' } } } } } }

@@ -49,6 +49,7 @@
 | `post.published.v1` | protected | postId, groupId, authorUserId, content, state, createdAt | group feed projection, audit |
 | `post.reported.v1` | protected | reportId, postId, groupId, reason, createdAt | moderation queue, audit (reporter ID protected) |
 | `post.moderated.v1` | protected | decisionId, postId, groupId, moderatorUserId, action, resultingState, reason, decidedAt | feed update, audit |
+| `message.queued.v1` | protected | messageId, threadId, groupId, senderUserId, state, serverReceivedAt, clientCreatedAt | group chat projection, audit (body protected) |
 | `incident.activated.v1` | safety | incident ID, server acceptance time, capability snapshot ref | safety ledger, dedicated channel workers, audit |
 | `channel.attempt_recorded.v1` | safety | incident ID, attempt ID, channel, evidence state, failure class | incident projection, safety audit |
 | `incident.acknowledged.v1` | safety | incident ID, acknowledgement ID, actor/evidence time | safety ledger and UI projection |
@@ -72,6 +73,20 @@ Durable events emitted via the transactional outbox (`outbox_events` table) upon
    - Emitted when a group owner restricts (`published` -> `restricted`) or restores (`restricted` -> `published`) a post.
    - Payload: `{ decisionId, postId, groupId, moderatorUserId, action, resultingState, reason, decidedAt }`.
    - Invariant: Appended to immutable decision audit table; immediate visibility adjustment in feed.
+
+## S9B Private Group Chat Durable Events
+
+Durable events emitted via the transactional outbox (`outbox_events` table) upon chat message acceptance:
+
+1. **`message.queued.v1`**:
+   - Emitted atomically when a text-only chat message is accepted by the server into a private group chat thread.
+   - Aggregate Type: `chat_message`
+   - Aggregate Version: `1`
+   - Payload: `{ messageId, threadId, groupId, senderUserId, state: "accepted", serverReceivedAt, clientCreatedAt }`.
+   - Invariants:
+     - Message state is strictly `accepted` (server acceptance only; never claims delivered or read).
+     - Message body is protected content and is omitted from public/broad outbox payload projection.
+     - Strictly zero location coordinates, media references, links, or delivery receipts.
 
 ## Realtime Presence Event Constraint
 

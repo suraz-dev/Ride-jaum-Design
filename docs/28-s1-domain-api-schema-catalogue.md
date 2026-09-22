@@ -521,6 +521,56 @@ type PostModerationDecision = {
    - Every moderation decision is appended to immutable `post_moderation_decisions` (no updates or deletes allowed).
 8. **Transactional Outbox:** Post creation, reporting, and moderation atomically commit their respective outbox events (`post.published.v1`, `post.reported.v1`, `post.moderated.v1`) within the primary transaction.
 
+### S9B Private Group Chat & Queued Message Foundation
+
+```ts
+type ChatThreadState = 'active' | 'archived';
+
+type ChatThread = {
+  id: string;
+  groupId: string;
+  state: ChatThreadState;
+  createdAt: UtcInstant;
+  updatedAt: UtcInstant;
+};
+
+type ChatMessageState = 'accepted'; // Server acceptance only; never implies delivered or recipient-acknowledged
+
+type ChatMessage = {
+  id: string;
+  threadId: string;
+  senderUserId: string;
+  senderDisplayName: string;
+  body: string; // text-only, 1-2000 chars, protected content
+  state: ChatMessageState;
+  clientCreatedAt?: UtcInstant;
+  serverReceivedAt: UtcInstant;
+};
+```
+
+| Method | Path | Purpose | Key rules |
+|---|---|---|---|
+| `GET` | `/v1/groups/{groupId}/chat-thread` | get group chat thread | Active group membership required; returns single active chat thread for group. |
+| `POST` | `/v1/groups/{groupId}/chat-thread` | initialize or get group chat thread | Active group membership required; Idempotency-Key required; DB uniqueness constraint guarantees exactly one active thread per group; safe concurrent creation. |
+| `GET` | `/v1/chat-threads/{threadId}/messages?cursor={cursor}&limit={limit}` | list thread messages | Active group membership required; reverse-chronological keyset cursor pagination over (serverReceivedAt DESC, id DESC). |
+| `POST` | `/v1/chat-threads/{threadId}/messages` | send chat message | Active group membership required; Idempotency-Key required; strictly text-only (1–2000 chars); state: accepted; emits message.queued.v1 outbox fact; message body is protected content (never logged in audit). |
+
+#### S9B Chat Invariants & Explicitly Deferred Scope
+
+1. **One Thread Per Group:** Exactly one active chat thread per group is enforced by a database uniqueness constraint (`uq_chat_threads_group`) and safe concurrent creation behavior.
+2. **Active Group Membership Scoping:** All thread and message endpoints require verified active group membership of the caller. Non-members or removed members receive HTTP 403 Forbidden.
+3. **Mandatory Idempotency:** Both `POST /v1/groups/{groupId}/chat-thread` and `POST /v1/chat-threads/{threadId}/messages` require the `Idempotency-Key` header. Missing key returns HTTP 400.
+4. **Honest Acceptance State:** Messages are recorded with state `accepted` (server acceptance only). Delivered, read, or recipient-acknowledged statuses are strictly forbidden.
+5. **Protected Content Policy:** Message bodies are classified as protected user communications. They must NEVER be logged in application logs, database audit logs (`identity_audit_events`), or error responses, and are accessible only to active group members.
+6. **Durable Outbox Event:** Server acceptance commits the message and emits `message.queued.v1` atomically into the transactional outbox.
+7. **Explicitly Deferred Scope:** The following are explicitly out of scope for S9B:
+   - Media attachments, image/audio/video uploads, object storage, and upload intents.
+   - URLs and link preview generation.
+   - Direct messages (1:1 DMs between users).
+   - Reactions, replies, threads, and comments.
+   - Realtime WebSocket streaming, BLE mesh chat relay, and push notifications.
+   - Typing indicators, online presence indicators, read receipts, and delivery receipts.
+
 ## 8. Safety incidents and channel attempts
 
 ```ts
