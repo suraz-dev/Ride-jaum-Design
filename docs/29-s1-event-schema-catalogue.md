@@ -117,12 +117,13 @@ Durable events emitted via the transactional outbox (`outbox_events` table) upon
      - Never claims incident resolved, closed, or assistance delivered.
 
 3. **`channel.attempt_recorded.v1`**:
-   - Emitted atomically into the transactional outbox upon recording a safety channel attempt.
+   - Emitted atomically into the transactional outbox by server-side channel attempt recording (internal server boundary; not triggered by public client mutation).
    - Aggregate Type: `safety_incident`
    - Aggregate Version: `1`
    - Classification: `safety`
    - Payload: `{ incidentId, attemptId, channelType, targetClass, result, safeReceiptRef, retryOfAttemptId, failoverFromAttemptId, safeErrorCategory, attemptedAt }`.
    - Invariants:
+     - In S10C, result is strictly `blocked_flag_disabled` with error category `channel_disabled` and null receipt reference. No queue (`queued_for_server`) or receipt claims (`rcpt_saf_*`) are emitted.
      - Permits only non-external-delivery evidence results (`blocked_flag_disabled`, `failed`, `delivery_unknown`, `queued_for_server`, `local_recorded`).
      - Prohibits false delivery/provider claims (`sent`, `delivered`, `provider_accepted`, `recipient_acknowledged`, `dispatched`).
      - Strictly zero contact phone numbers, recipient identities, raw provider bodies, coordinates, medical records, or secrets in outbox payload.
