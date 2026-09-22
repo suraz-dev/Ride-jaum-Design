@@ -468,7 +468,7 @@ paths:
     post:
       operationId: createPackDownloadIntent
       summary: Acquire short-lived fixture-backed download intent for offline pack assets
-      description: Issues short-lived scoped download intent tokens for pack assets. Enforces shared eligibility validation: pack must be available, not retired, and fresh; bound graph must be approved, published, and fresh. Download intents must not issue stale assets (fails closed with 422 if any target asset has freshUntil < now). Opaque fixture URIs are returned; zero live URLs or signed cloud storage URLs.
+      description: "Issues short-lived scoped download intent tokens for pack assets. Enforces shared eligibility validation: pack must be available, not retired, and fresh; bound graph must be approved, published, and fresh. Download intents must not issue stale assets (fails closed with 422 if any target asset has freshUntil < now). Opaque fixture URIs are returned; zero live URLs or signed cloud storage URLs."
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: false
@@ -831,7 +831,7 @@ paths:
     post:
       operationId: sendChatMessage
       summary: Send a text-only message to a private chat thread
-      description: Submits a text-only message (1-2000 characters) to a private group chat thread. Server acceptance only (state=accepted); never claims delivery or read status. Message body is protected content: never logged in audit or exposed outside authorized group members. Emits message.queued.v1 outbox event. Requires Idempotency-Key. Caller must be an active member of the thread's group.
+      description: "Submits a text-only message (1-2000 characters) to a private group chat thread. Server acceptance only (state=accepted); never claims delivery or read status. Message body is protected content: never logged in audit or exposed outside authorized group members. Emits message.queued.v1 outbox event. Requires Idempotency-Key. Caller must be an active member of the thread's group."
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
