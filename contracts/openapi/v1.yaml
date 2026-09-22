@@ -1214,6 +1214,7 @@ components:
       enum: [false_alarm, self_resolved, assistance_arrived, other]
     StandDownSafetyIncidentCommand:
       type: object
+      additionalProperties: false
       required: [reasonCode]
       properties:
         reasonCode:
