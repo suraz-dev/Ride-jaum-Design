@@ -600,6 +600,34 @@ type SafetyIncidentTimelineEvent = {
   reasonCode?: StandDownReasonCode;
 };
 
+type SafetyChannelType = 'in_app' | 'push' | 'sms' | 'voice' | 'device_relay';
+
+type SafetyChannelTargetClass = 'emergency_contact' | 'squad_member' | 'nearby_peer' | 'responder';
+
+type SafetyChannelAttemptResult = 'blocked_flag_disabled' | 'failed' | 'delivery_unknown' | 'queued_for_server' | 'local_recorded';
+
+type SafetyChannelErrorCategory = 'channel_disabled' | 'rate_limited' | 'transport_unavailable' | 'invalid_payload' | 'client_timeout' | 'internal_error';
+
+type RecordSafetyChannelAttemptCommand = {
+  channelType: SafetyChannelType;
+  targetClass: SafetyChannelTargetClass;
+  retryOfAttemptId?: string;
+  failoverFromAttemptId?: string;
+};
+
+type SafetyChannelAttempt = {
+  id: string;
+  incidentId: string;
+  channelType: SafetyChannelType;
+  targetClass: SafetyChannelTargetClass;
+  result: SafetyChannelAttemptResult;
+  safeReceiptRef?: string;
+  retryOfAttemptId?: string;
+  failoverFromAttemptId?: string;
+  safeErrorCategory?: SafetyChannelErrorCategory;
+  attemptedAt: UtcInstant;
+};
+
 type ActivateSafetyIncidentCommand = {
   activationMethod: SafetyIncidentActivationMethod;
   rideId?: string;
@@ -627,6 +655,8 @@ type SafetyIncident = {
 | `GET` | `/v1/safety-incidents/{incidentId}` | retrieve safety incident projection | Creator-only read access (returns 403 for non-creators, 404 for missing); minimal protected fields; records safe audit metadata; zero leaked coordinates or emergency contacts |
 | `POST` | `/v1/safety-incidents/{incidentId}/stand-down` | record deliberate incident stand-down | Idempotency-Key required; deliberate reasonCode required (false_alarm, self_resolved, assistance_arrived, other); accepts enumerated reasonCode only with no arbitrary details/notes; unknown fields rejected with HTTP 400 INVALID_COMMAND; creator-only authorization; transitions projection state from active to stand_down_requested (422 if not active); appends immutable ledger event persisting reasonCode only; emits incident.stand_down_requested.v1 outbox fact with classification safety; latestEvidence remains server_accepted; records safe audit metadata |
 | `GET` | `/v1/safety-incidents/{incidentId}/events` | retrieve chronological timeline events | Creator-only read access; returns ordered timeline (occurredAt ASC, id ASC); strictly zero coordinates, medical data, emergency contacts, or arbitrary client notes exposed; returns explicitly safe fields and reasonCode only; records safe audit metadata |
+| `POST` | `/v1/safety-incidents/{incidentId}/channel-attempts` | record immutable safety channel attempt | Idempotency-Key required; creator-only authorization; command accepts strictly channelType and targetClass (additionalProperties: false; unknown fields rejected with HTTP 400 INVALID_COMMAND); evaluates default-off capability flags (no external network calls or SDKs); records safe metadata only; generates safe receipt ref; links retryOfAttemptId / failoverFromAttemptId if valid (422 if invalid); appends to immutable safety_channel_attempts ledger; emits channel.attempt_recorded.v1 outbox fact with classification safety; records safe audit metadata |
+| `GET` | `/v1/safety-incidents/{incidentId}/channel-attempts` | retrieve chronological channel-attempt timeline | Creator-only read access; returns ordered timeline (attemptedAt ASC, id ASC); strictly zero phone numbers, contact identities, raw provider payloads, coordinates, or medical secrets; records safe audit metadata |
 
 ### S10 Safety Invariants & Privacy Guardrails
 1. **Deliberate Activation Methods:** Only `hold_to_activate` and `accessibility_equivalent` are permitted. Any other value is rejected with HTTP `400 INVALID_COMMAND`.
@@ -663,20 +693,35 @@ type SafetyIncident = {
    - Strictly zero GPS coordinates, medical records, emergency contact identities, or free-form notes are returned.
    - Audit logs record safe metadata (`INCIDENT_EVENTS_READ`).
 9. **Append-Only Status-Event Ledger:** Every incident activation and stand-down writes to `safety_incident_events`. The ledger is protected by database trigger `trg_safety_incident_events_immutability` executing function `prevent_safety_incident_events_mutation()`, preventing all `UPDATE` and `DELETE` operations.
-10. **Durable Outbox Events:** Emits `incident.activated.v1` and `incident.stand_down_requested.v1` atomically into the transactional outbox with `classification = 'safety'`.
-11. **Strict Privacy & Redaction Boundaries:**
-   - Raw location coordinates, medical profiles, emergency contacts, secrets, and sensitive notes are strictly prohibited from `identity_audit_events` and outbox event payloads.
-   - Audit logs record safe metadata only (`INCIDENT_ACTIVATED`, `INCIDENT_READ`, `INCIDENT_STAND_DOWN_REQUESTED`, `INCIDENT_EVENTS_READ`, target incident ID, actor user ID, device session ID).
-12. **Idempotency:** `Idempotency-Key` header is mandatory on `POST /v1/safety-incidents` and `POST /v1/safety-incidents/{incidentId}/stand-down`. Retries with the same key and payload replay cached responses without duplicating database rows or outbox events. Mismatched payloads return `409 IDEMPOTENCY_MISMATCH`.
-13. **Explicitly Deferred Scope:** The following remain strictly out of scope for S10B:
-   - Incident closure / closed state transitions (`closed`).
-   - Provider delivery, push notifications, SMS/voice alerts, cellular breadcrumbs, and emergency contact broadcasts.
-   - BLE mesh relay broadcast, LoRa, or satellite communications.
-   - Public emergency dispatch integrations (Nepal 112/100/102).
-   - Third-party provider integrations, webhooks, and external status polling.
-   - Channel attempt timeline (`GET /v1/safety-incidents/{incidentId}/attempts`).
-   - Recipient acknowledgements (`POST /v1/safety-incidents/{incidentId}/acknowledgements`).
-   - Realtime STOMP/WebSocket incident delivery.
+10. **Immutable Safety Channel-Attempt Ledger (S10C):**
+    - Every channel attempt writes to `safety_channel_attempts`. The ledger is protected by database trigger `trg_safety_channel_attempts_immutability` executing `prevent_safety_channel_attempts_mutation()`, preventing all `UPDATE` and `DELETE` operations.
+    - Stores strictly safe metadata: incident ID, channel type, target class, result, attempt time, safe receipt reference, retry/failover relation, and safe error category.
+11. **Strict Evidence Ceiling (S10C):**
+    - Permits only evidence states that do not claim external success without verified provider evidence (`blocked_flag_disabled`, `failed`, `delivery_unknown`, `queued_for_server`, `local_recorded`).
+    - Explicitly prohibits false-delivery claims: `sent`, `delivered`, `provider_accepted`, `recipient_acknowledged`, `dispatched`, or `emergency_service` are forbidden by database check constraints and API validation.
+12. **Default-Off Capability Flags & Zero Provider Activity (S10C):**
+    - All channel capabilities default to disabled (`ridejaunm.safety.channels.<channel>.enabled: false`).
+    - S10C makes strictly zero outbound network calls, loads no external provider SDKs or credentials, and contacts no real recipients. Attempts against disabled channels result in `blocked_flag_disabled` with error category `channel_disabled`.
+13. **Creator-Only Authorization & Safe Timeline (S10C):**
+    - `POST` and `GET /v1/safety-incidents/{incidentId}/channel-attempts` are restricted strictly to the incident creator. Non-creators receive HTTP `403 FORBIDDEN`. Missing incidents return HTTP `404 NOT_FOUND`.
+    - Timeline queries return attempts ordered deterministically (`attempted_at ASC, id ASC`).
+    - Strictly zero contact identities, phone numbers, raw provider bodies, coordinates, medical data, secrets, or arbitrary notes are returned or logged.
+14. **Retry & Failover Linkage (S10C):**
+    - Sequential attempts may declare `retryOfAttemptId` (same channel retry) or `failoverFromAttemptId` (channel failover).
+    - Linked attempt must exist and belong to the same incident; invalid linkages return HTTP `422 UNPROCESSABLE_ENTITY`.
+15. **Durable Outbox Events:** Emits `incident.activated.v1`, `incident.stand_down_requested.v1`, and `channel.attempt_recorded.v1` atomically into the transactional outbox with `classification = 'safety'`.
+16. **Strict Privacy & Redaction Boundaries:**
+    - Raw location coordinates, medical profiles, emergency contacts, phone numbers, provider payloads, secrets, and sensitive notes are strictly prohibited from `identity_audit_events` and outbox event payloads.
+    - Audit logs record safe metadata only (`INCIDENT_ACTIVATED`, `INCIDENT_READ`, `INCIDENT_STAND_DOWN_REQUESTED`, `INCIDENT_EVENTS_READ`, `INCIDENT_CHANNEL_ATTEMPT_RECORDED`, `INCIDENT_CHANNEL_ATTEMPTS_READ`).
+17. **Idempotency:** `Idempotency-Key` header is mandatory on all safety mutating endpoints (`POST /v1/safety-incidents`, `POST /v1/safety-incidents/{incidentId}/stand-down`, `POST /v1/safety-incidents/{incidentId}/channel-attempts`). Retries with the same key and payload replay cached responses without duplicating database rows or outbox events. Mismatched payloads return `409 IDEMPOTENCY_MISMATCH`.
+18. **Explicitly Deferred Scope:** The following remain strictly out of scope for S10C:
+    - Incident closure / closed state transitions (`closed`).
+    - Real external provider delivery, push notifications, SMS/voice provider integration, cellular breadcrumbs, and real emergency contact broadcasts.
+    - BLE mesh relay broadcast, LoRa, or satellite communications.
+    - Public emergency dispatch integrations (Nepal 112/100/102).
+    - Third-party provider webhooks, status polling callbacks, and external recipient delivery receipts.
+    - Recipient acknowledgements (`POST /v1/safety-incidents/{incidentId}/acknowledgements`).
+    - Realtime STOMP/WebSocket incident delivery.
 
 ## 9. Country configuration and capability content
 

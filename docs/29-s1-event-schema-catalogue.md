@@ -116,6 +116,17 @@ Durable events emitted via the transactional outbox (`outbox_events` table) upon
      - Strictly zero coordinates, medical details, contacts, or secrets in outbox payload.
      - Never claims incident resolved, closed, or assistance delivered.
 
+3. **`channel.attempt_recorded.v1`**:
+   - Emitted atomically into the transactional outbox upon recording a safety channel attempt.
+   - Aggregate Type: `safety_incident`
+   - Aggregate Version: `1`
+   - Classification: `safety`
+   - Payload: `{ incidentId, attemptId, channelType, targetClass, result, safeReceiptRef, retryOfAttemptId, failoverFromAttemptId, safeErrorCategory, attemptedAt }`.
+   - Invariants:
+     - Permits only non-external-delivery evidence results (`blocked_flag_disabled`, `failed`, `delivery_unknown`, `queued_for_server`, `local_recorded`).
+     - Prohibits false delivery/provider claims (`sent`, `delivered`, `provider_accepted`, `recipient_acknowledged`, `dispatched`).
+     - Strictly zero contact phone numbers, recipient identities, raw provider bodies, coordinates, medical records, or secrets in outbox payload.
+
 ## Realtime Presence Event Constraint
 
 `group.presence.changed.v1` is an **ephemeral fan-out event** delivered exclusively over authorized, user-scoped WebSocket channels (`/user/queue/ride:{rideId}:presence`). It mirrors the server-authoritative REST `Presence` projection.

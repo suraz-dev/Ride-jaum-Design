@@ -562,6 +562,53 @@ paths:
         '401': { $ref: '#/components/responses/ApiError' }
         '403': { $ref: '#/components/responses/ApiError' }
         '404': { $ref: '#/components/responses/ApiError' }
+  /safety-incidents/{incidentId}/channel-attempts:
+    parameters: [{ $ref: '#/components/parameters/IncidentId' }]
+    post:
+      operationId: recordSafetyChannelAttempt
+      summary: Record an immutable safety channel attempt
+      description: Appends a provider-neutral attempt record to the incident channel ledger. Strictly enforces safe metadata with no contact phone numbers, identities, or raw provider payloads. Returns immediately with honest evidence status.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RecordSafetyChannelAttemptCommand' } } }
+      responses:
+        '201':
+          description: Safety channel attempt recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { $ref: '#/components/schemas/SafetyChannelAttempt' }
+                  meta: { $ref: '#/components/schemas/Meta' }
+        '400': { $ref: '#/components/responses/ApiError' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
+        '409': { $ref: '#/components/responses/ApiError' }
+        '422': { $ref: '#/components/responses/ApiError' }
+    get:
+      operationId: getSafetyChannelAttempts
+      summary: Retrieve chronological channel-attempt timeline for a safety incident
+      description: Returns ordered, redacted channel-attempt history for a safety incident. Scoped strictly to the incident creator. Strictly zero contact phone numbers, recipient identities, raw provider bodies, coordinates, or medical secrets are exposed.
+      responses:
+        '200':
+          description: Chronological list of safety channel attempts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SafetyChannelAttempt' }
+                  meta: { $ref: '#/components/schemas/Meta' }
+        '401': { $ref: '#/components/responses/ApiError' }
+        '403': { $ref: '#/components/responses/ApiError' }
+        '404': { $ref: '#/components/responses/ApiError' }
   /configuration/effective:
     get:
       operationId: getEffectiveConfiguration
@@ -1233,6 +1280,45 @@ components:
         occurredAt: { $ref: '#/components/schemas/UtcInstant' }
         reasonCode:
           $ref: '#/components/schemas/StandDownReasonCode'
+    SafetyChannelType:
+      type: string
+      enum: [in_app, push, sms, voice, device_relay]
+    SafetyChannelTargetClass:
+      type: string
+      enum: [emergency_contact, squad_member, nearby_peer, responder]
+    SafetyChannelAttemptResult:
+      type: string
+      enum: [blocked_flag_disabled, failed, delivery_unknown, queued_for_server, local_recorded]
+    SafetyChannelErrorCategory:
+      type: string
+      enum: [channel_disabled, rate_limited, transport_unavailable, invalid_payload, client_timeout, internal_error]
+    RecordSafetyChannelAttemptCommand:
+      type: object
+      additionalProperties: false
+      required: [channelType, targetClass]
+      properties:
+        channelType:
+          $ref: '#/components/schemas/SafetyChannelType'
+        targetClass:
+          $ref: '#/components/schemas/SafetyChannelTargetClass'
+        retryOfAttemptId:
+          $ref: '#/components/schemas/OpaqueId'
+        failoverFromAttemptId:
+          $ref: '#/components/schemas/OpaqueId'
+    SafetyChannelAttempt:
+      type: object
+      required: [id, incidentId, channelType, targetClass, result, attemptedAt]
+      properties:
+        id: { $ref: '#/components/schemas/OpaqueId' }
+        incidentId: { $ref: '#/components/schemas/OpaqueId' }
+        channelType: { $ref: '#/components/schemas/SafetyChannelType' }
+        targetClass: { $ref: '#/components/schemas/SafetyChannelTargetClass' }
+        result: { $ref: '#/components/schemas/SafetyChannelAttemptResult' }
+        safeReceiptRef: { type: string, nullable: true }
+        retryOfAttemptId: { $ref: '#/components/schemas/OpaqueId', nullable: true }
+        failoverFromAttemptId: { $ref: '#/components/schemas/OpaqueId', nullable: true }
+        safeErrorCategory: { $ref: '#/components/schemas/SafetyChannelErrorCategory', nullable: true }
+        attemptedAt: { $ref: '#/components/schemas/UtcInstant' }
     GeoSource:
       type: object
       required: [id, sourceName, sourceVersion, licenceReference, reviewState, receivedAt, createdAt, updatedAt]
